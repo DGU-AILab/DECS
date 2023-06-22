@@ -47,7 +47,7 @@ fi
   chown -R svmanager:$USER_GROUP /home/$USER_GROUP
   chmod -R 770 /home/$USER_GROUP
 
-  # 그룹의 공유 디렉토리의 권한 설정 //재귀로 해야하는지 테스트해야함
+  # 그룹의 공유 디렉토리의 권한 설정
   chmod g+rw /home/$USER_GROUP
   echo "Group Permission Setting done"
 
