@@ -3,15 +3,19 @@
 echo "hello entrypoint!"
 
 # readme 안내문 생성
-if [ ! -f /home/decs/readme_decs.txt ]; then
-    echo "Hello, Decs" > /home/decs/readme_decs.txt
+echo "Hello, Decs 업데이트 테스트" > /home/$USER_ID/readme_decs.txt
+
+# jupyterlab 설정파일 수정
+
+# jupyter lab 에서 생성한 ipynb 파일을 저장할 디렉토리 생성 (없는경우만 신규 생성)
+if [ ! -d "/home/$USER_ID/decs_jupyter_lab" ]; then
+  mkdir /home/$USER_ID/decs_jupyter_lab
+  echo "Created /home/$USER_ID/decs_jupyter_lab dir...."
 fi
 
-# jupyter_lab 파일을 저장할 폴더가 없는 경우, 생성
-if [ ! -d "/home/decs/decs_jupyter_lab" ]; then
-  mkdir -p /home/decs/decs_jupyter_lab
-  echo "Created /home/decs/decs_jupyter_lab directory."
-fi
+# jupyter lab 접속 설정
+sudo sed -i "1i c.JupyterApp.config_file_name = 'jupyter_notebook_config.py'\nc.NotebookApp.allow_origin = '*'\nc.NotebookApp.ip = '0.0.0.0'\nc.NotebookApp.open_browser = False\nc.NotebookApp.allow_remote_access = True\nc.NotebookApp.allow_root = True\nc.NotebookApp.notebook_dir='/home/$USER_ID/decs_jupyter_lab'" /jupyter_config/jupyter_notebook_config.py
+
 # jupyter_lab 기동
 echo "trying jupyter lab..."
 nohup /opt/anaconda3/bin/jupyter lab --NotebookApp.token=decs --config=/jupyter_config/jupyter_notebook_config.py >/dev/null 2>&1 &
@@ -41,12 +45,12 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     echo "No User account detected..."
 
     # 유저 계정을 생성, 홈폴더는 decs폴더로 설정
-    useradd -s /bin/bash -M "$USER_ID"
-    
+    useradd -s /bin/bash -d /$USER_ID -G sudo $USER_ID
+
     # 홈폴더 생성
     # skeleton 파일을 복사하여, 유저명이 tf-docker 로 표시되는 것을 방지
-    cp -R /etc/skel/. "/home/decs"
-    usermod -d /home/decs "$USER_ID"
+    cp -R /etc/skel/. "/home/$USER_ID"
+    usermod -d "/home/$USER_ID" "$USER_ID"
 
     # 입력받은 비밀번호로 유저 계정 변경
     echo "$USER_ID:$USER_PW" | chpasswd
@@ -61,7 +65,7 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     echo "ssh change done..."
 
     # decs 폴더의 소유자를 유저로 변경. 시간이 약간 소요됨(재귀로 decs의 모든 파일의 권한을 변경한다.)
-    chown -R "$USER_ID:$USER_ID" /home/decs
+    chown -R "$USER_ID:$USER_ID" "/home/$USER_ID"
 
     # sudo docker logs [container_name] 으로 로그 확인 가능
     echo "decs chown change done..."
