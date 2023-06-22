@@ -8,7 +8,7 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     echo "No User account detected..."
 
     # 유저 계정을 생성, 홈폴더는 decs폴더로 설정
-    useradd -s /bin/bash -d /$USER_ID
+    useradd -s /bin/bash -d /$USER_ID $USER_ID
     # sudo 권한을 주되, 자신 소유가 아닌 폴더를 삭제하는 shell command를 제한
     echo "$USER_ID ALL=(ALL) NOPASSWD:ALL, !/bin/rm" >> /etc/sudoers
 
@@ -56,7 +56,7 @@ groupmod -g $UID $USER_ID
 usermod -u $UID -g $UID $USER_ID
 
 # readme 안내문 생성
-echo "Hello, Decs 업데이트 테스트" > /home/$USER_ID/readme_decs.txt
+echo "Hello Decs, 동국대학교 GPU 서버 컨테이너 서비스 decs 입니다." > /home/$USER_ID/readme_decs.txt
 
 # jupyterlab 설정파일 수정
 
