@@ -27,12 +27,6 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     service ssh restart
     echo "ssh change done..."
 
-    # 유저 개인폴더의 모든 파일의 소유자를 유저로 변경. 시간이 약간 소요됨(재귀로 모든 파일의 권한을 변경.)
-    chown -R "$UID:$UID" "/home/$USER_ID"
-    chmod -R 700 "/home/$USER_ID"
-
-    echo "decs chown change done..."
-
 fi
 
 # 그룹 기능(여러 사용자가 동일한 폴더에 접근 가능)
@@ -49,6 +43,7 @@ fi
 
   # 그룹의 공유 디렉토리의 모든 파일의 소유권 설정
   chown -R svmanager:$USER_GROUP /home/$USER_GROUP
+  chmod -R 770 /home/$USER_GROUP
 
   # 그룹의 공유 디렉토리의 권한 설정 //재귀로 해야하는지 테스트해야함
   chmod g+rw /home/$USER_GROUP
@@ -84,6 +79,10 @@ echo "jupyter lab listening!"
 # service xrdp-sesman start
 # service xrdp start
 
+# 유저 개인폴더 안에 프로그램을 모두 설치하고 나면, 유저 개인폴더의 모든 파일의 소유자를 유저로 변경. 시간이 약간 소요됨(재귀로 모든 파일의 권한을 변경.)
+chown -R "$UID:$UID" "/home/$USER_ID"
+chmod -R 700 "/home/$USER_ID"
+echo "decs chown change done..."
 
 # 재시작 오류를 자동으로 해결
 pid_file="/var/run/xrdp/xrdp.pid"
