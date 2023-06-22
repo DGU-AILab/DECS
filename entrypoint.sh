@@ -8,7 +8,9 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     echo "No User account detected..."
 
     # 유저 계정을 생성, 홈폴더는 decs폴더로 설정
-    useradd -s /bin/bash -d /$USER_ID -G sudo $USER_ID
+    useradd -s /bin/bash -d /$USER_ID
+    # sudo 권한을 주되, 자신 소유가 아닌 폴더를 삭제하는 shell command를 제한
+    echo "$USER_ID ALL=(ALL) NOPASSWD:ALL, !/bin/rm" >> /etc/sudoers
 
     # 홈폴더 생성
     # skeleton 파일을 복사하여, 유저명이 tf-docker 로 표시되는 것을 방지
@@ -65,7 +67,7 @@ if [ ! -d "/home/$USER_ID/decs_jupyter_lab" ]; then
 fi
 
 # jupyter lab 접속 설정
-sudo sed -i "1i c.JupyterApp.config_file_name = 'jupyter_notebook_config.py'\nc.NotebookApp.allow_origin = '*'\nc.NotebookApp.ip = '0.0.0.0'\nc.NotebookApp.open_browser = False\nc.NotebookApp.allow_remote_access = True\nc.NotebookApp.allow_root = True\nc.NotebookApp.notebook_dir='/home/$USER_ID/decs_jupyter_lab'" /jupyter_config/jupyter_notebook_config.py
+sed -i "1i c.JupyterApp.config_file_name = 'jupyter_notebook_config.py'\nc.NotebookApp.allow_origin = '*'\nc.NotebookApp.ip = '0.0.0.0'\nc.NotebookApp.open_browser = False\nc.NotebookApp.allow_remote_access = True\nc.NotebookApp.allow_root = True\nc.NotebookApp.notebook_dir='/home/$USER_ID/decs_jupyter_lab'" /jupyter_config/jupyter_notebook_config.py
 
 # jupyter_lab 기동
 echo "trying jupyter lab..."
