@@ -4,7 +4,7 @@ echo "hello entrypoint!"
 
 # readme 안내문 생성
 if [ ! -f /home/decs/readme_decs.txt ]; then
-    echo "Hello, Decs" > /home/decs/readme_decs.txt
+    echo "이 폴더 안의 파일들은 모두 온라인으로 실시간 백업됩니다. -ailab 서버관리자-" > /home/decs/readme_decs.txt
 fi
 
 # jupyter_lab 파일을 저장할 폴더가 없는 경우, 생성
@@ -66,6 +66,7 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     # sudo docker logs [container_name] 으로 로그 확인 가능
     echo "decs chown change done..."
 
+    
 fi
 
 
