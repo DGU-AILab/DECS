@@ -78,8 +78,8 @@ echo "jupyter lab listening!"
 # update-alternatives --set x-terminal-emulator /usr/bin/xfce4-terminal
 
 # xrdp를 자동으로 시작
-# service xrdp-sesman start
-# service xrdp start
+service xrdp-sesman start
+service xrdp start
 
 # 유저 개인폴더 안에 프로그램을 모두 설치하고 나면, 유저 개인폴더의 모든 파일의 소유자를 유저로 변경. 시간이 약간 소요됨(재귀로 모든 파일의 권한을 변경.)
 chown -R "$UID:$UID" "/home/$USER_ID"
