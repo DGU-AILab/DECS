@@ -48,6 +48,17 @@ RUN cat /etc/environment
 # xrdp 실행을 위한 그래픽 인터페이스 설치
 RUN apt-get install -y xrdp xfce4 xfce4-terminal
 
+# xrdp 설정
+COPY startwm.sh /etc/xrdp/startwm.sh
+
+# xrdp 필요한 환경 변수 설정
+RUN echo "unset DBUS_SESSION_BUS_ADDRESS" >> $HOME/.profile && \
+    echo "unset XDG_RUNTIME_DIR" >> $HOME/.profile
+
+# ssl-cert 그룹에 xrdp 사용자 추가
+RUN groupadd -r ssl-cert && \
+    useradd -r -g ssl-cert xrdp
+
 
 # Anaconda 설치 및 환경설정
 RUN wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh \
