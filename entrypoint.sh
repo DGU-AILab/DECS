@@ -1,17 +1,74 @@
 #!/bin/bash
 
+# sudo docker logs [container_name] 으로 로그 확인 가능
 echo "hello entrypoint!"
 
-# readme 안내문 생성
-if [ ! -f /home/decs/readme_decs.txt ]; then
-    echo "Hello, Decs" > /home/decs/readme_decs.txt
+# 유저 계정 생성
+if ! id "$USER_ID" >/dev/null 2>&1; then
+    echo "No User account detected..."
+
+    # 유저 계정을 생성, 홈폴더는 decs폴더로 설정
+    useradd -s /bin/bash -d /$USER_ID $USER_ID
+    # sudo 권한을 주되, 자신 소유가 아닌 폴더를 삭제하는 shell command를 제한
+    echo "$USER_ID ALL=(ALL) NOPASSWD:ALL, !/bin/rm" >> /etc/sudoers
+
+    # 홈폴더 생성
+    # skeleton 파일을 복사하여, 유저명이 tf-docker 로 표시되는 것을 방지
+    cp -R /etc/skel/. "/home/$USER_ID"
+    usermod -d "/home/$USER_ID" "$USER_ID"
+
+    # 입력받은 비밀번호로 유저 계정 변경
+    echo "$USER_ID:$USER_PW" | chpasswd
+
+    echo "user account config done..."
+    
+    # sshd 설정도 바꾼다.
+    # 서버관리자와 유저계정의 ssh 접속을 허용
+    sed -i "/^#PermitRootLogin/a AllowUsers svmanager" /etc/ssh/sshd_config
+    sed -i "/^#PermitRootLogin/a AllowUsers $USER_ID" /etc/ssh/sshd_config
+    service ssh restart
+    echo "ssh change done..."
+
 fi
 
-# jupyter_lab 파일을 저장할 폴더가 없는 경우, 생성
-if [ ! -d "/home/decs/decs_jupyter_lab" ]; then
-  mkdir -p /home/decs/decs_jupyter_lab
-  echo "Created /home/decs/decs_jupyter_lab directory."
+# 그룹 기능(여러 사용자가 동일한 폴더에 접근 가능)
+# 그룹 폴더가 없는 경우(신규 그룹) 생성
+if [ ! -d "/home/$USER_GROUP/" ]; then
+  # 폴더 생성
+  mkdir /home/$USER_GROUP
+  echo "Created /home/$USER_GROUP...."
 fi
+
+# 그룹 추가, 등록, 권한 설정
+  groupadd $USER_GROUP
+  usermod -aG $USER_GROUP $USER_ID
+
+  # 그룹의 공유 디렉토리의 모든 파일의 소유권 설정
+  chown -R svmanager:$USER_GROUP /home/$USER_GROUP
+  chmod -R 770 /home/$USER_GROUP
+
+  # 그룹의 공유 디렉토리의 권한 설정
+  chmod g+rw /home/$USER_GROUP
+  echo "Group Permission Setting done"
+
+# UID, GID 설정 (UID가 기본적으로 1001로 시작되는데, 컨테이너끼리 겹치면 접근 제한 불가)
+groupmod -g $UID $USER_ID
+usermod -u $UID -g $UID $USER_ID
+
+# readme 안내문 생성
+echo "Hello Decs, 동국대학교 GPU 서버 컨테이너 서비스 decs 입니다." > /home/$USER_ID/readme_decs.txt
+
+# jupyterlab 설정파일 수정
+
+# jupyter lab 에서 생성한 ipynb 파일을 저장할 디렉토리 생성 (없는경우만 신규 생성)
+if [ ! -d "/home/$USER_ID/decs_jupyter_lab" ]; then
+  mkdir /home/$USER_ID/decs_jupyter_lab
+  echo "Created /home/$USER_ID/decs_jupyter_lab dir...."
+fi
+
+# jupyter lab 접속 설정
+sed -i "1i c.JupyterApp.config_file_name = 'jupyter_notebook_config.py'\nc.NotebookApp.allow_origin = '*'\nc.NotebookApp.ip = '0.0.0.0'\nc.NotebookApp.open_browser = False\nc.NotebookApp.allow_remote_access = True\nc.NotebookApp.allow_root = True\nc.NotebookApp.notebook_dir='/home/$USER_ID/decs_jupyter_lab'" /jupyter_config/jupyter_notebook_config.py
+
 # jupyter_lab 기동
 echo "trying jupyter lab..."
 nohup /opt/anaconda3/bin/jupyter lab --NotebookApp.token=decs --config=/jupyter_config/jupyter_notebook_config.py >/dev/null 2>&1 &
@@ -21,9 +78,13 @@ echo "jupyter lab listening!"
 # update-alternatives --set x-terminal-emulator /usr/bin/xfce4-terminal
 
 # xrdp를 자동으로 시작
-# service xrdp-sesman start
-# service xrdp start
+service xrdp-sesman start
+service xrdp start
 
+# 유저 개인폴더 안에 프로그램을 모두 설치하고 나면, 유저 개인폴더의 모든 파일의 소유자를 유저로 변경. 시간이 약간 소요됨(재귀로 모든 파일의 권한을 변경.)
+chown -R "$UID:$UID" "/home/$USER_ID"
+chmod -R 700 "/home/$USER_ID"
+echo "decs chown change done..."
 
 # 재시작 오류를 자동으로 해결
 pid_file="/var/run/xrdp/xrdp.pid"
@@ -35,39 +96,8 @@ if [ -f "$sesman_file" ]; then
     rm -f "$sesman_file"
 fi
 
-#decs 를 사용자가 입력한 id 로 변경(가장 마지막에 수행되어야함.)
 
-if ! id "$USER_ID" >/dev/null 2>&1; then
-    echo "No User account detected..."
-
-    # 유저 계정을 생성, 홈폴더는 decs폴더로 설정
-    useradd -s /bin/bash -M "$USER_ID"
     
-    # 홈폴더 생성
-    # skeleton 파일을 복사하여, 유저명이 tf-docker 로 표시되는 것을 방지
-    cp -R /etc/skel/. "/home/decs"
-    usermod -d /home/decs "$USER_ID"
-
-    # 입력받은 비밀번호로 유저 계정 변경
-    echo "$USER_ID:$USER_PW" | chpasswd
-
-    echo "user account config done..."
-
-    # sshd 설정도 바꾼다.
-    # 서버관리자와 유저계정의 ssh 접속을 허용
-    sed -i "/^#PermitRootLogin/a AllowUsers svmanager" /etc/ssh/sshd_config
-    sed -i "/^#PermitRootLogin/a AllowUsers $USER_ID" /etc/ssh/sshd_config
-    service ssh restart
-    echo "ssh change done..."
-
-    # decs 폴더의 소유자를 유저로 변경. 시간이 약간 소요됨(재귀로 decs의 모든 파일의 권한을 변경한다.)
-    chown -R "$USER_ID:$USER_ID" /home/decs
-
-    # sudo docker logs [container_name] 으로 로그 확인 가능
-    echo "decs chown change done..."
-
-fi
-
 
 #entrypoint.sh 를 실행하고 나서 컨테이너가 Exit 하지 않게함
 tail -F /dev/null

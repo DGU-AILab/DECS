@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND noninteractive
 
 ENV SUDOER_ID svmanager
 ENV SUDOER_PW decs2260
-ENV SUDOER_DIR /home/$SUDOER_ID
+ENV SUDOER_DIR /$SUDOER_ID
 ENV SSHD_CONFIG_PATH /etc/ssh/sshd_config
 
 RUN apt-get clean \
@@ -21,12 +21,17 @@ curl \
 ssh \
 software-properties-common 
 
-# # 관리자 계정 추가
-RUN useradd -s /bin/bash -d /home/$SUDOER_ID -m -G sudo $SUDOER_ID \
+# 관리자 계정의 home directory 로 쓸 폴더 추가(home은 nfs이므로, 다른 곳에 생성)
+RUN mkdir "$SUDOER_DIR"
+# 관리자 계정을 추가, home directory 를 위에서 생성한 폴더로 설정
+RUN useradd -s /bin/bash -d /$SUDOER_ID -G sudo $SUDOER_ID \
     && echo "$SUDOER_ID ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# skel 을 복사 (로그인 시 tf-docker 로 뜨지 않게 하는 목적)
+RUN cp -R /etc/skel/. "$SUDOER_DIR"
 
 RUN echo $SUDOER_ID:$SUDOER_PW | chpasswd
-RUN chown -R $SUDOER_ID:$SUDOER_ID "$SUDOER_DIR"
+# 소유권 설정 필요한가?
+# RUN chown -R $SUDOER_ID:$SUDOER_ID "$SUDOER_DIR"
 
 # decs dir 을 생성
 RUN mkdir /home/decs
@@ -42,6 +47,13 @@ RUN cat /etc/environment
 
 # xrdp 실행을 위한 그래픽 인터페이스 설치
 RUN apt-get install -y xrdp xfce4 xfce4-terminal
+
+# xrdp 필요한 환경 변수 설정
+RUN echo "unset DBUS_SESSION_BUS_ADDRESS" >> $HOME/.profile && \
+    echo "unset XDG_RUNTIME_DIR" >> $HOME/.profile
+
+# ssl-cert 그룹에 xrdp 사용자 추가
+RUN usermod -aG ssl-cert xrdp
 
 
 # Anaconda 설치 및 환경설정
@@ -60,14 +72,7 @@ RUN /opt/anaconda3/bin/conda install -y jupyterlab
 RUN mkdir /jupyter_config \
     && /opt/anaconda3/bin/jupyter lab --generate-config --config=/jupyter_config/jupyter_notebook_config.py
 
-# jupyterlab 설정파일 수정
 
-# jupyter lab 에서 생성한 ipynb 파일을 저장할 디렉토리 생성
-RUN mkdir /home/decs/decs_jupyter_lab
-
-# jupyter lab 접속
-RUN sudo sed -i \
-'1i c.JupyterApp.config_file_name = "jupyter_notebook_config.py"\nc.NotebookApp.allow_origin = "*"\nc.NotebookApp.ip = "0.0.0.0"\nc.NotebookApp.open_browser = False\nc.NotebookApp.allow_remote_access = True\nc.NotebookApp.allow_root = True\nc.NotebookApp.notebook_dir="/home/decs/decs_jupyter_lab"' /jupyter_config/jupyter_notebook_config.py
 
 
 # entrypoint.sh 복사
