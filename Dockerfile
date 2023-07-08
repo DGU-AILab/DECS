@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.5.0rc1-gpu
+FROM ubuntu:20.04
 # # 설치 시 geographic area 를 물어보지 않도록 설정(apt install 시 interrupted 됨)
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -8,9 +8,10 @@ ENV SUDOER_DIR /$SUDOER_ID
 ENV SSHD_CONFIG_PATH /etc/ssh/sshd_config
 
 RUN apt-get clean \
+&& apt-get update && apt-get install -y gnupg \
 && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A4B469963BF863CC \
 && apt-get -y update \
-&& apt install -y \
+&& apt-get install -y \
 sudo \
 net-tools \
 fcitx-hangul \
@@ -20,6 +21,9 @@ wget \
 curl \
 ssh \
 software-properties-common 
+
+# motd install
+RUN apt-get update && apt-get install -y update-motd
 
 # 관리자 계정의 home directory 로 쓸 폴더 추가(home은 nfs이므로, 다른 곳에 생성)
 RUN mkdir "$SUDOER_DIR"
@@ -56,21 +60,21 @@ RUN echo "unset DBUS_SESSION_BUS_ADDRESS" >> $HOME/.profile && \
 RUN usermod -aG ssl-cert xrdp
 
 
-# Anaconda 설치 및 환경설정
-RUN wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh \
-    && bash Anaconda3-2020.02-Linux-x86_64.sh -b -p /opt/anaconda3 \
-    && rm Anaconda3-2020.02-Linux-x86_64.sh
+# # Anaconda 설치 및 환경설정
+# RUN wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh \
+#     && bash Anaconda3-2020.02-Linux-x86_64.sh -b -p /opt/anaconda3 \
+#     && rm Anaconda3-2020.02-Linux-x86_64.sh
 
-ENV PATH opt/anaconda3/bin:$PATH
-RUN echo "export PATH="/opt/anaconda3/bin:$PATH >> /etc/profile \
-    && /opt/anaconda3/bin/conda init
+# ENV PATH opt/anaconda3/bin:$PATH
+# RUN echo "export PATH="/opt/anaconda3/bin:$PATH >> /etc/profile \
+#     && /opt/anaconda3/bin/conda init
 
-# jupyterlab 설치
-RUN /opt/anaconda3/bin/conda install -y jupyterlab
+# # jupyterlab 설치
+# RUN /opt/anaconda3/bin/conda install -y jupyterlab
 
-# jupyterlab 설정파일 생성
-RUN mkdir /jupyter_config \
-    && /opt/anaconda3/bin/jupyter lab --generate-config --config=/jupyter_config/jupyter_notebook_config.py
+# # jupyterlab 설정파일 생성
+# RUN mkdir /jupyter_config \
+#     && /opt/anaconda3/bin/jupyter lab --generate-config --config=/jupyter_config/jupyter_notebook_config.py
 
 
 
