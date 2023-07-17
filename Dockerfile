@@ -62,7 +62,7 @@ RUN cat /etc/environment
 # docker container 에는 기본적으로 접속로그가 안됨. /var/log/auth.log
 # sshd_config 의 log 를 AUTH 에서 DEBUG 로 바꾸면, 더 자세한 로그가 기록됨.
 # 로그 확인 방법은 tail -f auth.log
-RUN apt-get install rsyslog
+RUN apt-get install -y rsyslog
 
 # # Anaconda 설치 및 환경설정
 # RUN wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh \
