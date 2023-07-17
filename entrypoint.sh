@@ -42,25 +42,29 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
 
 fi
 
-# 그룹 기능(여러 사용자가 동일한 폴더에 접근 가능)
-# 그룹 폴더가 없는 경우(신규 그룹) 생성
-if [ ! -d "/home/public/$USER_GROUP/" ]; then
-  # 폴더 생성
-  mkdir /home/public/$USER_GROUP
-  echo "Created /home/public/$USER_GROUP...."
-fi
+### start 그룹 기능 비활성화 하였음 (2023-07-17 전재호)
 
-# 그룹 추가, 등록, 권한 설정
-  groupadd $USER_GROUP
-  usermod -aG $USER_GROUP $USER_ID
-  usermod -d /home/public $USER_ID
-  # 그룹의 공유 디렉토리의 모든 파일의 소유권 설정
-  chown -R svmanager:$USER_GROUP /home/$USER_GROUP
-  chmod -R 770 /home/$USER_GROUP
+# # 그룹 기능(여러 사용자가 동일한 폴더에 접근 가능)
+# # 그룹 폴더가 없는 경우(신규 그룹) 생성
+# if [ ! -d "/home/public/$USER_GROUP/" ]; then
+#   # 폴더 생성
+#   mkdir /home/public/$USER_GROUP
+#   echo "Created /home/public/$USER_GROUP...."
+# fi
 
-  # 그룹의 공유 디렉토리의 권한 설정
-  chmod g+rw /home/$USER_GROUP
-  echo "Group Permission Setting done"
+# # 그룹 추가, 등록, 권한 설정
+#   groupadd $USER_GROUP
+#   usermod -aG $USER_GROUP $USER_ID
+#   usermod -d /home/public $USER_ID
+#   # 그룹의 공유 디렉토리의 모든 파일의 소유권 설정
+#   chown -R svmanager:$USER_GROUP /home/$USER_GROUP
+#   chmod -R 770 /home/$USER_GROUP
+
+#   # 그룹의 공유 디렉토리의 권한 설정
+#   chmod g+rw /home/$USER_GROUP
+#   echo "Group Permission Setting done"
+
+### end 그룹 기능 비활성화 하였음 (2023-07-17 전재호)
 
 # UID, GID 설정 (UID가 기본적으로 1001로 시작되는데, 컨테이너끼리 겹치면 접근 제한 불가)
 groupmod -g $UID $USER_ID
