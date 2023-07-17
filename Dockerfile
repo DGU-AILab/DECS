@@ -50,15 +50,19 @@ RUN printf "LANG=\"ko_KR.UTF-8\"\nLANG=\"ko_KR.EUC-KR\"\nLANGUAGE=\"ko_KR:ko:en_
 RUN cat /etc/environment
 
 # xrdp 실행을 위한 그래픽 인터페이스 설치
-RUN apt-get install -y xrdp xfce4 xfce4-terminal
+# RUN apt-get install -y xrdp xfce4 xfce4-terminal
 
 # xrdp 필요한 환경 변수 설정
-RUN echo "unset DBUS_SESSION_BUS_ADDRESS" >> $HOME/.profile && \
-    echo "unset XDG_RUNTIME_DIR" >> $HOME/.profile
+# RUN echo "unset DBUS_SESSION_BUS_ADDRESS" >> $HOME/.profile && \
+#     echo "unset XDG_RUNTIME_DIR" >> $HOME/.profile
 
-# ssl-cert 그룹에 xrdp 사용자 추가
-RUN usermod -aG ssl-cert xrdp
+# # ssl-cert 그룹에 xrdp 사용자 추가
+# RUN usermod -aG ssl-cert xrdp
 
+# docker container 에는 기본적으로 접속로그가 안됨. /var/log/auth.log
+# sshd_config 의 log 를 AUTH 에서 DEBUG 로 바꾸면, 더 자세한 로그가 기록됨.
+# 로그 확인 방법은 tail -f auth.log
+RUN rsyslog
 
 # # Anaconda 설치 및 환경설정
 # RUN wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh \
