@@ -19,10 +19,11 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     # sudo 권한을 주되, 자신 소유가 아닌 폴더를 삭제하는 shell command를 제한
     echo "$USER_ID ALL=(ALL) NOPASSWD:ALL, !/bin/rm" >> /etc/sudoers
 
-    # # 홈폴더 생성
-    # # skeleton 파일을 복사하여, 유저명이 tf-docker 로 표시되는 것을 방지
-    # cp -R /etc/skel/. "/home/public/$USER_ID"
-    # usermod -d "/home/public/$USER_ID" "$USER_ID"
+    # 홈폴더 생성
+    # skeleton 파일을 복사하여, 유저명이 tf-docker 로 표시되는 것을 방지
+    mkdir "/home/public/$USER_ID"
+    cp -R /etc/skel/. "/home/public/$USER_ID"
+    usermod -d "/home/public/$USER_ID" "$USER_ID"
 
     # 입력받은 비밀번호로 유저 계정 변경
     echo "$USER_ID:$USER_PW" | chpasswd
@@ -92,27 +93,25 @@ usermod -u $UID -g $UID $USER_ID
 # xrdp의 터미널이 안켜지는 오류 자동 해결 : 터미널로 xface 를 선택
 # update-alternatives --set x-terminal-emulator /usr/bin/xfce4-terminal
 
-# xrdp를 자동으로 시작
-service xrdp-sesman start
-service xrdp start
+# # xrdp를 자동으로 시작
+# service xrdp-sesman start
+# service xrdp start
 
 # 유저 개인폴더 안에 프로그램을 모두 설치하고 나면, 유저 개인폴더의 모든 파일의 소유자를 유저로 변경. 시간이 약간 소요됨(재귀로 모든 파일의 권한을 변경.)
-chown -R "$UID:$UID" "/home/$USER_ID"
-chmod -R 700 "/home/$USER_ID"
+chown -R "$UID:$UID" "/home/public/$USER_ID"
+chmod -R 700 "/home/public/$USER_ID"
 echo "decs chown change done..."
 
-# 재시작 오류를 자동으로 해결
-pid_file="/var/run/xrdp/xrdp.pid"
-if [ -f "$pid_file" ]; then
-    rm -f "$pid_file"
-fi
-sesman_file="/var/run/xrdp/xrdp-sesman.pid"
-if [ -f "$sesman_file" ]; then
-    rm -f "$sesman_file"
-fi
+# # 재시작 오류를 자동으로 해결
+# pid_file="/var/run/xrdp/xrdp.pid"
+# if [ -f "$pid_file" ]; then
+#     rm -f "$pid_file"
+# fi
+# sesman_file="/var/run/xrdp/xrdp-sesman.pid"
+# if [ -f "$sesman_file" ]; then
+#     rm -f "$sesman_file"
+# fi
 
-
-    
 
 #entrypoint.sh 를 실행하고 나서 컨테이너가 Exit 하지 않게함
 tail -F /dev/null
