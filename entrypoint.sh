@@ -33,6 +33,10 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     # 서버관리자와 유저계정의 ssh 접속을 허용
     sed -i "/^#PermitRootLogin/a AllowUsers svmanager" /etc/ssh/sshd_config
     sed -i "/^#PermitRootLogin/a AllowUsers $USER_ID" /etc/ssh/sshd_config
+
+    # 사용자가 한명만 접속이 되고, 다른 사용자는 접속이 불가능 한 현상을 해결하기 위해 PAM 기능을 비활성화
+    sudo sed -i 's/^UsePAM yes/UsePAM no/' /etc/ssh/sshd_config
+
     service ssh restart
     echo "ssh change done..."
 
