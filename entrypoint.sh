@@ -36,7 +36,10 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     sed -i "/^#PermitRootLogin/a AllowUsers $USER_ID" /etc/ssh/sshd_config
 
     # 사용자가 한명만 접속이 되고, 다른 사용자는 접속이 불가능 한 현상을 해결하기 위해 PAM 기능을 비활성화
-    sudo sed -i 's/^UsePAM yes/UsePAM no/' /etc/ssh/sshd_config
+    sed -i 's/^UsePAM yes/UsePAM no/' /etc/ssh/sshd_config
+
+    # Motd 를 출력하도록 설정
+    sed -i 's/^#* *PrintMotd.*$/PrintMotd yes/' /etc/ssh/sshd_config
 
     service ssh restart
     echo "ssh change done..."
