@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.6.0-gpu
+FROM tensorflow/tensorflow:2.12.0-gpu
 # # 설치 시 geographic area 를 물어보지 않도록 설정(apt install 시 interrupted 됨)
 ENV DEBIAN_FRONTEND noninteractive
 
