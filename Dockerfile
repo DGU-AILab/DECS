@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM tensorflow/tensorflow:2.6.0-gpu
 # # 설치 시 geographic area 를 물어보지 않도록 설정(apt install 시 interrupted 됨)
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -6,12 +6,12 @@ ENV SUDOER_ID svmanager
 ENV SUDOER_PW decs2260
 ENV SUDOER_DIR /$SUDOER_ID
 ENV SSHD_CONFIG_PATH /etc/ssh/sshd_config
+# RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
 
 RUN apt-get clean \
-&& apt-get update && apt-get install -y gnupg \
 && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A4B469963BF863CC \
 && apt-get -y update \
-&& apt-get install -y \
+&& apt install -y \
 sudo \
 net-tools \
 fcitx-hangul \
@@ -25,6 +25,7 @@ software-properties-common
 # motd install
 RUN apt-get update && apt-get install -y update-motd
 
+
 # 관리자 계정의 home directory 로 쓸 폴더 추가(home은 nfs이므로, 다른 곳에 생성)
 RUN mkdir "$SUDOER_DIR"
 # 관리자 계정을 추가, home directory 를 위에서 생성한 폴더로 설정
@@ -34,8 +35,7 @@ RUN useradd -s /bin/bash -d /$SUDOER_ID -G sudo $SUDOER_ID \
 RUN cp -R /etc/skel/. "$SUDOER_DIR"
 
 RUN echo $SUDOER_ID:$SUDOER_PW | chpasswd
-# 소유권 설정 필요한가?
-# RUN chown -R $SUDOER_ID:$SUDOER_ID "$SUDOER_DIR"
+
 
 # decs dir 을 생성
 RUN mkdir /home/decs
@@ -49,32 +49,22 @@ RUN printf "LANG=\"ko_KR.UTF-8\"\nLANG=\"ko_KR.EUC-KR\"\nLANGUAGE=\"ko_KR:ko:en_
 
 RUN cat /etc/environment
 
-# xrdp 실행을 위한 그래픽 인터페이스 설치
-RUN apt-get install -y xrdp xfce4 xfce4-terminal
-
-# xrdp 필요한 환경 변수 설정
-RUN echo "unset DBUS_SESSION_BUS_ADDRESS" >> $HOME/.profile && \
-    echo "unset XDG_RUNTIME_DIR" >> $HOME/.profile
-
-# ssl-cert 그룹에 xrdp 사용자 추가
-RUN usermod -aG ssl-cert xrdp
-
 
 # # Anaconda 설치 및 환경설정
-# RUN wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh \
-#     && bash Anaconda3-2020.02-Linux-x86_64.sh -b -p /opt/anaconda3 \
-#     && rm Anaconda3-2020.02-Linux-x86_64.sh
+RUN wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh \
+    && bash Anaconda3-2020.02-Linux-x86_64.sh -b -p /opt/anaconda3 \
+    && rm Anaconda3-2020.02-Linux-x86_64.sh
 
-# ENV PATH opt/anaconda3/bin:$PATH
-# RUN echo "export PATH="/opt/anaconda3/bin:$PATH >> /etc/profile \
-#     && /opt/anaconda3/bin/conda init
+ENV PATH opt/anaconda3/bin:$PATH
+RUN echo "export PATH="/opt/anaconda3/bin:$PATH >> /etc/profile \
+    && /opt/anaconda3/bin/conda init
 
 # # jupyterlab 설치
-# RUN /opt/anaconda3/bin/conda install -y jupyterlab
+RUN /opt/anaconda3/bin/conda install -y jupyterlab
 
 # # jupyterlab 설정파일 생성
-# RUN mkdir /jupyter_config \
-#     && /opt/anaconda3/bin/jupyter lab --generate-config --config=/jupyter_config/jupyter_notebook_config.py
+RUN mkdir /jupyter_config \
+    && /opt/anaconda3/bin/jupyter lab --generate-config --config=/jupyter_config/jupyter_notebook_config.py
 
 
 
