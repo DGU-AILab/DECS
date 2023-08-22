@@ -29,10 +29,11 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     echo "user account config done..."
     
     # sshd 설정도 바꾼다.
-    # 서버관리자와 유저계정의 ssh 접속을 허용
+    # 서버관리자와 유저계정의 ssh 접속을 허용 및 다중접속 허용
     sed -i "/^#PermitRootLogin/a AllowUsers svmanager" /etc/ssh/sshd_config
     sed -i "/^#PermitRootLogin/a AllowUsers $USER_ID" /etc/ssh/sshd_config
-    service ssh restart
+    sed -i 's/^UsePAM yes/UsePAM no/' /etc/ssh/sshd_config
+    
     echo "ssh change done..."
 
 fi
@@ -64,7 +65,8 @@ usermod -u $UID -g $UID $USER_ID
 # readme 안내문 생성
 echo "Hello Decs, 동국대학교 GPU 서버 컨테이너 서비스 decs 입니다." > /home/$USER_ID/readme_decs.txt
 
-# jupyterlab 설정파일 수정
+# ssh restart
+service ssh restart
 
 # jupyter lab 에서 생성한 ipynb 파일을 저장할 디렉토리 생성 (없는경우만 신규 생성)
 if [ ! -d "/home/$USER_ID/decs_jupyter_lab" ]; then
@@ -88,11 +90,11 @@ sudo apt install -y auditd
 # sed -i "/^#-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$USER_ID -k rm_commands" /etc/audit/audit.rules
 echo "-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$USER_ID -k rm_commands" >> /etc/audit/audit.rules
 
-# Add the HISTTIMEFORMAT setting to /etc/profile
+# history 명령어 칠 때 명령어를 입력한 시간이 같이 나오게끔 하는 명령어
 echo 'HISTTIMEFORMAT="[%Y-%m-%d %H:%M:%S] "' >> /etc/profile
-# Export the HISTTIMEFORMAT variable
 echo 'export HISTTIMEFORMAT' >> /etc/profile
 
+# history -w 현재시간.txt파일을 만들고, /var/log/audit로 이동하는 부분임. 사용자가 로그아웃 할 때
 echo 'cd ~' >> /home/$USER_ID/.bash_logout
 echo 'current_time=$(date +%Y-%m-%d_%H-%M-%S)' >> /home/$USER_ID/.bash_logout
 echo 'history -w $current_time.txt' >> /home/$USER_ID/.bash_logout
