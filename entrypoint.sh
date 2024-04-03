@@ -6,8 +6,12 @@ echo "hello entrypoint!"
 echo -e "\n\n -------------------------------------------------------------------------------------------------------------------------------------------- 
 \n\n 안녕하세요. 동국대학교 AI lab 입니다. \n\n 해당 컨테이너는 sudo권한을 가집니다. 
 \n 따라서, 컨테이너 또는 컨테이너가 실행중인 로컬서버에 해가 되는 행동을 할 시 사용자분에게 전적인 책임이 있음을 안내드립니다. 
+<<<<<<< HEAD
 \n 디렉토리 또는 파일을 삭제하는 행위 또는 root 권한을 통해 시스템을 수정하는 명령어 등을 조심히 사용해주시면 됩니다.  
 \n 추가로, 사용자분의 디렉토리는 별도로 백업되지 않습니다. 중요한 파일의 경우 주기적으로 백업해 주시기 바랍니다. 감사합니다.
+=======
+\n 디렉토리 또는 파일을 삭제하는 행위 또는 root 권한을 통해 시스템을 수정하는 명령어 등을 조심히 사용해주시면 됩니다. 감사합니다. 
+>>>>>>> 7250ac3299e92efeadffb93324e4d7caed5ee25f
 \n (이미지 버전 : decs:1.4) \n\n
 --------------------------------------------------------------------------------------------------------------------------------------------\n" > /etc/motd
 # 유저 계정 생성
@@ -86,6 +90,7 @@ echo "jupyter lab listening!"
 # auditd 설치
 sudo apt update
 sudo apt install -y auditd
+<<<<<<< HEAD
 
 # /etc/audit/audit.rules 파일에 줄 추가
 # sed -i "/^#-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$USER_ID -k rm_commands" /etc/audit/audit.rules
@@ -96,6 +101,18 @@ echo 'HISTTIMEFORMAT="[%Y-%m-%d %H:%M:%S] "' >> /etc/profile
 echo 'export HISTTIMEFORMAT' >> /etc/profile
 
 # history -w 현재시간.txt파일을 만들고, /var/log/audit로 이동하는 부분임. 사용자가 로그아웃 할 때
+=======
+
+# /etc/audit/audit.rules 파일에 줄 추가
+# sed -i "/^#-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$USER_ID -k rm_commands" /etc/audit/audit.rules
+echo "-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$USER_ID -k rm_commands" >> /etc/audit/audit.rules
+
+# Add the HISTTIMEFORMAT setting to /etc/profile
+echo 'HISTTIMEFORMAT="[%Y-%m-%d %H:%M:%S] "' >> /etc/profile
+# Export the HISTTIMEFORMAT variable
+echo 'export HISTTIMEFORMAT' >> /etc/profile
+
+>>>>>>> 7250ac3299e92efeadffb93324e4d7caed5ee25f
 echo 'cd ~' >> /home/$USER_ID/.bash_logout
 echo 'current_time=$(date +%Y-%m-%d_%H-%M-%S)' >> /home/$USER_ID/.bash_logout
 echo 'history -w $current_time.txt' >> /home/$USER_ID/.bash_logout
@@ -106,7 +123,10 @@ chown -R "$UID:$UID" "/home/$USER_ID"
 chmod -R 700 "/home/$USER_ID"
 echo "decs chown change done..."
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 7250ac3299e92efeadffb93324e4d7caed5ee25f
 
 #entrypoint.sh 를 실행하고 나서 컨테이너가 Exit 하지 않게함
 tail -F /dev/null

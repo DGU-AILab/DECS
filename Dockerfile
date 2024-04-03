@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 FROM tensorflow/tensorflow:2.9.1-gpu-jupyter
+=======
+FROM tensorflow/tensorflow:2.6.0-gpu
+>>>>>>> 7250ac3299e92efeadffb93324e4d7caed5ee25f
 # # 설치 시 geographic area 를 물어보지 않도록 설정(apt install 시 interrupted 됨)
 ENV DEBIAN_FRONTEND noninteractive
 
