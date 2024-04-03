@@ -107,5 +107,6 @@ chmod -R 700 "/home/$USER_ID"
 echo "decs chown change done..."
 
 
+
 #entrypoint.sh 를 실행하고 나서 컨테이너가 Exit 하지 않게함
 tail -F /dev/null
