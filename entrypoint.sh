@@ -38,14 +38,16 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
 fi
 
 # 그룹 기능(여러 사용자가 동일한 폴더에 접근 가능)
-# 그룹 폴더가 없는 경우(신규 그룹) 생성
-if [ ! -d "/home/$USER_GROUP/" ]; then
-  # 폴더 생성
-  mkdir /home/$USER_GROUP
-  echo "Created /home/$USER_GROUP...."
-fi
+# 2024년 11월 2일 추가 - $USER_GROUP 환경 변수값이 있을 때만 그룹 관련 명령을 실행
+if [ -n "$USER_GROUP" ]; then
+  # 그룹 폴더가 없는 경우(신규 그룹) 생성
+  if [ ! -d "/home/$USER_GROUP/" ]; then
+    # 폴더 생성
+    mkdir /home/$USER_GROUP
+    echo "Created /home/$USER_GROUP...."
+  fi
 
-# 그룹 추가, 등록, 권한 설정
+  # 그룹 추가, 등록, 권한 설정
   groupadd $USER_GROUP
   usermod -aG $USER_GROUP $USER_ID
 
@@ -56,6 +58,7 @@ fi
   # 그룹의 공유 디렉토리의 권한 설정
   chmod g+rw /home/$USER_GROUP
   echo "Group Permission Setting done"
+fi
 
 # UID, GID 설정 (UID가 기본적으로 1001로 시작되는데, 컨테이너끼리 겹치면 접근 제한 불가)
 groupmod -g $UID $USER_ID
