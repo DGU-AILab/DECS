@@ -1,4 +1,25 @@
-FROM tensorflow/tensorflow:2.6.0-gpu
+
+# 이 파일은 decs:241102 이미지의 Dockerfile 입니다.
+############################# version history #############################
+
+###### decs:1.4 변경 사항 ######
+# 변경한 사람: 박민균 관리자
+# tensorflow version 2.6.0-gpu
+# xrdp 관련 명령어 제거
+# Anaconda 설치 및 환경설정 명령어 추가
+
+##### decs:1.4.18 변경 사항 #####
+# 변경한 사람: 박민균 관리자
+# tensorflow version 2.6.0-gpu -> 2.13.0-gpu 
+
+
+##### decs:241102 #####
+# 변경한 사람: 김민기 관리자
+# 변경 사항 없음
+
+########################### version history end ##########################
+
+FROM tensorflow/tensorflow:2.13.0-gpu
 # # 설치 시 geographic area 를 물어보지 않도록 설정(apt install 시 interrupted 됨)
 ENV DEBIAN_FRONTEND noninteractive
 
