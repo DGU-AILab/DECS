@@ -22,6 +22,14 @@
 ## decs:1.4.18에서는 USER_GROUP이 설정되어 있지 않더라도 그룹 디렉토리 생성, 그룹 추가, 등록, 권한 설정을 수행함.
 ## 그 결과 다른 유저들 디렉토리의 소유자, 그룹, 권한이 모두 변경되는 오류가 발생했었음.
 
+##### decs:250113 ####
+# 변경한 사람: 임준영 관리자
+# 241102 이미지를 이용하여 생성한 컨테이너를 재시작하는 경우,
+# 이미 USER_GROUP 디렉토리가 존재하지만 chown -R 명령어를 실행하는 문제가 있음.
+# 또한 USER_NAME과 USER_GROUP이 동일한 경우, user 디렉토리 자체 소유권 svmanager로 변경되는 문제가 있음.
+# 이를 해결하기 위해 /home/$USER_GROUP 디렉토리가 존재하지 않는 경우에만 명령어를 실행하도록 변경함.
+
+
 ########################### version history end ##########################
 
 
@@ -67,25 +75,26 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
 fi
 
 # 그룹 기능(여러 사용자가 동일한 폴더에 접근 가능)
-# 2024년 11월 2일 추가 - $USER_GROUP 환경 변수값이 있을 때만 그룹 관련 명령을 실행
+# 2024년 11월 02일 추가 - $USER_GROUP 환경 변수값이 있을 때만 그룹 관련 명령을 실행
+# 2025년 01월 13일 추가 - /home/$USER_GROUP 디렉토리가 존재하지 않을 때에만 디렉토리를 생성하고, 해당 디렉토리 소유권을 수정하도록 변경
 if [ -n "$USER_GROUP" ]; then
-  if [ ! -d "/home/$USER_GROUP/" ]; then
-    # 폴더 생성
-    mkdir /home/$USER_GROUP
-    echo "Created /home/$USER_GROUP...."
-  fi
 
   # 그룹 추가, 등록, 권한 설정
   groupadd $USER_GROUP
   usermod -aG $USER_GROUP $USER_ID
+  if [ ! -d "/home/$USER_GROUP/" ]; then
+    # 폴더 생성
+    mkdir /home/$USER_GROUP
+    echo "Created /home/$USER_GROUP...."
 
-  # 그룹의 공유 디렉토리의 모든 파일의 소유권 설정
-  chown -R svmanager:$USER_GROUP /home/$USER_GROUP
-  chmod -R 770 /home/$USER_GROUP
+    # 그룹의 공유 디렉토리의 모든 파일의 소유권 설정
+    chown -R svmanager:$USER_GROUP /home/$USER_GROUP
+    chmod -R 770 /home/$USER_GROUP
 
-  # 그룹의 공유 디렉토리의 권한 설정
-  chmod g+rw /home/$USER_GROUP
-  echo "Group Permission Setting done"
+    # 그룹의 공유 디렉토리의 권한 설정
+    chmod g+rw /home/$USER_GROUP
+    echo "Group Permission Setting done"
+  fi
 fi
 
 # UID, GID 설정 (UID가 기본적으로 1001로 시작되는데, 컨테이너끼리 겹치면 접근 제한 불가)
