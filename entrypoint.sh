@@ -29,6 +29,11 @@
 # 또한 USER_NAME과 USER_GROUP이 동일한 경우, user 디렉토리 자체 소유권 svmanager로 변경되는 문제가 있음.
 # 이를 해결하기 위해 /home/$USER_GROUP 디렉토리가 존재하지 않는 경우에만 명령어를 실행하도록 변경함.
 
+##### decs:250120 ####
+# 변경한 사람: 임준영 관리자
+# 250113 이미지를 이용하여 생성한 컨테이너를 재시작하는 경우,
+# 이미 user directory의 권한이 정상적으로 설정되어있음에도, UID를 이용하여 소유권을 초기화하는 문제가 있음.
+# 이를 해결하기 위해 /home/$USER_ID가 존재하지 않는 경우에만 생성하고, 소유권, 권한을 설정하도록 변경함.
 
 ########################### version history end ##########################
 
@@ -43,7 +48,20 @@ echo -e "\n\n ------------------------------------------------------------------
 \n 추가로, 사용자분의 디렉토리는 별도로 백업되지 않습니다. 중요한 파일의 경우 주기적으로 백업해 주시기 바랍니다. 감사합니다.
 \n (이미지 버전 : decs:1.4) \n\n
 --------------------------------------------------------------------------------------------------------------------------------------------\n" > /etc/motd
-# 유저 계정 생성
+# auditd 설치
+sudo apt update
+sudo apt install -y auditd
+
+# /etc/audit/audit.rules 파일에 줄 추가
+# sed -i "/^#-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$USER_ID -k rm_commands" /etc/audit/audit.rules
+echo "-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$USER_ID -k rm_commands" >> /etc/audit/audit.rules
+
+# history 명령어 칠 때 명령어를 입력한 시간이 같이 나오게끔 하는 명령어
+echo 'HISTTIMEFORMAT="[%Y-%m-%d %H:%M:%S] "' >> /etc/profile
+echo 'export HISTTIMEFORMAT' >> /etc/profile
+
+
+# 유저 계정 생성 및 디렉토리 생성
 if ! id "$USER_ID" >/dev/null 2>&1; then
     echo "No User account detected..."
 
@@ -52,15 +70,32 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     # sudo 권한을 준다.
     echo "$USER_ID ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-    # 홈폴더 생성
-    # skeleton 파일을 복사하여, 유저명이 tf-docker 로 표시되는 것을 방지
-    cp -R /etc/skel/. "/home/$USER_ID"
-    usermod -d "/home/$USER_ID" "$USER_ID"
+
 
     # 입력받은 비밀번호로 유저 계정 변경
     echo "$USER_ID:$USER_PW" | chpasswd
 
     echo "user account config done..."
+    # 25.01.20 변경 - 임준영 관리자
+    # /home 내부 user directory가 존재하지 않을 때에만 수행.
+    if [ ! -d "/home/$USER_ID/" ]; then
+        # 홈폴더 생성
+        # skeleton 파일을 복사하여, 유저명이 tf-docker 로 표시되는 것을 방지
+        cp -R /etc/skel/. "/home/$USER_ID"
+        usermod -d "/home/$USER_ID" "$USER_ID"
+        # history -w 현재시간.txt파일을 만들고, /var/log/audit로 이동하는 부분임. 사용자가 로그아웃 할 때
+        echo 'cd ~' >> /home/$USER_ID/.bash_logout
+        echo 'current_time=$(date +%Y-%m-%d_%H-%M-%S)' >> /home/$USER_ID/.bash_logout
+        echo 'history -w $current_time.txt' >> /home/$USER_ID/.bash_logout
+        echo 'sudo mv $current_time.txt /var/log/audit/' >> /home/$USER_ID/.bash_logout
+
+        # 유저 개인폴더 안에 프로그램을 모두 설치하고 나면, 유저 개인폴더의 모든 파일의 소유자를 유저로 변경. 시간이 약간 소요됨(재귀로 모든 파일의 권한을 변경.)
+        chown -R "$USER_ID:$USER_ID" "/home/$USER_ID"
+        chmod -R 700 "/home/$USER_ID"
+        echo "decs chown change done..." 
+    fi
+
+
     
     # sshd 설정도 바꾼다.
     # 서버관리자와 유저계정의 ssh 접속을 허용 및 다중접속 허용
@@ -121,28 +156,7 @@ echo "trying jupyter lab..."
 nohup /opt/anaconda3/bin/jupyter lab --NotebookApp.token=decs --config=/jupyter_config/jupyter_notebook_config.py >/dev/null 2>&1 &
 echo "jupyter lab listening!"
 
-# auditd 설치
-sudo apt update
-sudo apt install -y auditd
 
-# /etc/audit/audit.rules 파일에 줄 추가
-# sed -i "/^#-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$USER_ID -k rm_commands" /etc/audit/audit.rules
-echo "-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$USER_ID -k rm_commands" >> /etc/audit/audit.rules
-
-# history 명령어 칠 때 명령어를 입력한 시간이 같이 나오게끔 하는 명령어
-echo 'HISTTIMEFORMAT="[%Y-%m-%d %H:%M:%S] "' >> /etc/profile
-echo 'export HISTTIMEFORMAT' >> /etc/profile
-
-# history -w 현재시간.txt파일을 만들고, /var/log/audit로 이동하는 부분임. 사용자가 로그아웃 할 때
-echo 'cd ~' >> /home/$USER_ID/.bash_logout
-echo 'current_time=$(date +%Y-%m-%d_%H-%M-%S)' >> /home/$USER_ID/.bash_logout
-echo 'history -w $current_time.txt' >> /home/$USER_ID/.bash_logout
-echo 'sudo mv $current_time.txt /var/log/audit/' >> /home/$USER_ID/.bash_logout
-
-# 유저 개인폴더 안에 프로그램을 모두 설치하고 나면, 유저 개인폴더의 모든 파일의 소유자를 유저로 변경. 시간이 약간 소요됨(재귀로 모든 파일의 권한을 변경.)
-chown -R "$UID:$UID" "/home/$USER_ID"
-chmod -R 700 "/home/$USER_ID"
-echo "decs chown change done..."
 
 
 #entrypoint.sh 를 실행하고 나서 컨테이너가 Exit 하지 않게함
