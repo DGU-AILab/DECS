@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 이 파일은 decs:241102 이미지의 entrypoint.sh 입니다.
+# 이 파일은 decs:250120 이미지의 entrypoint.sh 입니다.
 
 ############################# version history #############################
 
