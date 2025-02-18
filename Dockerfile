@@ -71,11 +71,10 @@ RUN printf "LANG=\"ko_KR.UTF-8\"\nLANG=\"ko_KR.EUC-KR\"\nLANGUAGE=\"ko_KR:ko:en_
 
 RUN cat /etc/environment
 
-
-# # Anaconda 설치 및 환경설정
-RUN wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh \
-    && bash Anaconda3-2020.02-Linux-x86_64.sh -b -p /opt/anaconda3 \
-    && rm Anaconda3-2020.02-Linux-x86_64.sh
+# 최신 Anaconda 버전 다운로드 및 설치
+RUN wget https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh \
+    && bash Anaconda3-2024.10-1-Linux-x86_64.sh -b -p /opt/anaconda3 \
+    && rm Anaconda3-2024.10-1-Linux-x86_64.sh
 
 ENV PATH opt/anaconda3/bin:$PATH
 RUN echo "export PATH="/opt/anaconda3/bin:$PATH >> /etc/profile \
