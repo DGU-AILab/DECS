@@ -41,13 +41,14 @@
 # sudo docker logs [container_name] 으로 로그 확인 가능
 echo "hello entrypoint!"
 
-echo -e "\n\n -------------------------------------------------------------------------------------------------------------------------------------------- 
-\n\n 안녕하세요. 동국대학교 AI lab 입니다. \n\n 해당 컨테이너는 sudo권한을 가집니다. 
-\n 따라서, 컨테이너 또는 컨테이너가 실행중인 로컬서버에 해가 되는 행동을 할 시 사용자분에게 전적인 책임이 있음을 안내드립니다. 
-\n 디렉토리 또는 파일을 삭제하는 행위 또는 root 권한을 통해 시스템을 수정하는 명령어 등을 조심히 사용해주시면 됩니다.  
-\n 추가로, 사용자분의 디렉토리는 별도로 백업되지 않습니다. 중요한 파일의 경우 주기적으로 백업해 주시기 바랍니다. 감사합니다.
-\n (이미지 버전 : decs:1.4) \n\n
---------------------------------------------------------------------------------------------------------------------------------------------\n" > /etc/motd
+#echo -e "\n\n -------------------------------------------------------------------------------------------------------------------------------------------- 
+#\n\n 안녕하세요. 동국대학교 AI lab 입니다. \n\n 해당 컨테이너는 sudo권한을 가집니다. 
+#\n 따라서, 컨테이너 또는 컨테이너가 실행중인 로컬서버에 해가 되는 행동을 할 시 사용자분에게 전적인 책임이 있음을 안내드립니다. 
+#\n 디렉토리 또는 파일을 삭제하는 행위 또는 root 권한을 통해 시스템을 수정하는 명령어 등을 조심히 사용해주시면 됩니다.  
+#\n 추가로, 사용자분의 디렉토리는 별도로 백업되지 않습니다. 중요한 파일의 경우 주기적으로 백업해 주시기 바랍니다. 감사합니다.
+#\n (이미지 버전 : decs:1.4) \n\n
+#--------------------------------------------------------------------------------------------------------------------------------------------\n" > /etc/motd
+
 # auditd 설치
 sudo apt update
 sudo apt install -y auditd
@@ -75,6 +76,12 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     # 입력받은 비밀번호로 유저 계정 변경
     echo "$USER_ID:$USER_PW" | chpasswd
 
+    # UID, GID 설정 (UID가 기본적으로 1001로 시작되는데, 컨테이너끼리 겹치면 접근 제한 불가)  
+    groupmod -g $UID $USER_ID
+    echo "groupmod -g ${UID} ${USER_ID}"
+    usermod -u $UID -g $UID $USER_ID
+    echo "usermod -u ${UID} -g ${UID} ${USER_ID}"
+
     echo "user account config done..."
     # 25.01.20 변경 - 임준영 관리자
     # /home 내부 user directory가 존재하지 않을 때에만 수행.
@@ -90,7 +97,9 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
         echo 'sudo mv $current_time.txt /var/log/audit/' >> /home/$USER_ID/.bash_logout
 
         # 유저 개인폴더 안에 프로그램을 모두 설치하고 나면, 유저 개인폴더의 모든 파일의 소유자를 유저로 변경. 시간이 약간 소요됨(재귀로 모든 파일의 권한을 변경.)
+	echo "chown -R ${USER_ID}:${USER_ID} /home/${USER_ID}"
         chown -R "$USER_ID:$USER_ID" "/home/$USER_ID"
+        echo "chmod -R 700 /home/${USER_ID}" 
         chmod -R 700 "/home/$USER_ID"
         echo "decs chown change done..." 
     fi
@@ -112,9 +121,12 @@ fi
 # 그룹 기능(여러 사용자가 동일한 폴더에 접근 가능)
 # 2024년 11월 02일 추가 - $USER_GROUP 환경 변수값이 있을 때만 그룹 관련 명령을 실행
 # 2025년 01월 13일 추가 - /home/$USER_GROUP 디렉토리가 존재하지 않을 때에만 디렉토리를 생성하고, 해당 디렉토리 소유권을 수정하도록 변경
-if [ -n "$USER_GROUP" ]; then
+# 2025년 01월 27일 추가 - $USER_ID != $USER_GROUP 일 때에만 실행
+if [ -n "$USER_GROUP" ] && [ "$USER_ID" != "$USER_GROUP" ]; then
 
   # 그룹 추가, 등록, 권한 설정
+  echo "groupadd ${USER_GROUP}"
+  echo "usermod -aG $USER_GROUP $USER_ID"
   groupadd $USER_GROUP
   usermod -aG $USER_GROUP $USER_ID
   if [ ! -d "/home/$USER_GROUP/" ]; then
@@ -124,17 +136,13 @@ if [ -n "$USER_GROUP" ]; then
 
     # 그룹의 공유 디렉토리의 모든 파일의 소유권 설정
     chown -R svmanager:$USER_GROUP /home/$USER_GROUP
+    # 그룹의 공유 디렉토리의 권한 설정
     chmod -R 770 /home/$USER_GROUP
 
-    # 그룹의 공유 디렉토리의 권한 설정
-    chmod g+rw /home/$USER_GROUP
     echo "Group Permission Setting done"
   fi
 fi
 
-# UID, GID 설정 (UID가 기본적으로 1001로 시작되는데, 컨테이너끼리 겹치면 접근 제한 불가)
-groupmod -g $UID $USER_ID
-usermod -u $UID -g $UID $USER_ID
 
 # readme 안내문 생성
 echo "Hello Decs, 동국대학교 GPU 서버 컨테이너 서비스 decs 입니다." > /home/$USER_ID/readme_decs.txt
