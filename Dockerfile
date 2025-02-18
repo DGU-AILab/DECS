@@ -17,6 +17,10 @@
 # 변경한 사람: 김민기 관리자
 # 변경 사항 없음
 
+##### decs:250218 #####
+# 변경한 사람: 임준영 관리자
+# 변경 사항 conda 4.9.2 -> conda 24.9.2
+
 ########################### version history end ##########################
 
 # https://hub.docker.com/layers/tensorflow/tensorflow/2.13.0-gpu/images/sha256-b4676741c491bff3d0f29c38c369281792c7d5c5bfa2b1aa93e5231a8d236323
