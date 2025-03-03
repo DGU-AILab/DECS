@@ -56,6 +56,16 @@ if [ "$USER_ID" != "$USER_GROUP" ]; then
     fi
 fi
 
+# 로그인시 안내문 생성
+cat <<EXPL >> /etc/bash.bashrc
+echo -e "\e[0;33m"
+cat <<EOF
+서버에서 사용 중인 데이터는 언제 장애가 발생해서 사라질지 모릅니다. 항상 중요한 데이터는 서버 밖에 백업해두시기 바랍니다.
+Data on the server can be lost at any time due to unexpected failures. Always back up important data outside the server.
+EOF
+echo -e "\e[0m"
+EXPL
+
 # ssh restart
 service ssh restart
 
