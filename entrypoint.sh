@@ -88,5 +88,10 @@ echo "trying jupyter lab..."
 nohup /opt/anaconda3/bin/jupyter lab --NotebookApp.token=decs --config=/jupyter_config/jupyter_notebook_config.py >/dev/null 2>&1 &
 echo "jupyter lab listening!"
 
+# ldconfig permission 오류 방지
+# bash.bashrc에서 ldconfig 명령어 삭제 후 명령어 실행 및 결과 출력
+sed -i '/ldconfig/d' /etc/bash.bashrc
+ldconfig && echo "ldconfig executed successfully" || echo "ldconfig failed"
+
 #entrypoint.sh 를 실행하고 나서 컨테이너가 Exit 하지 않게함
 tail -F /dev/null

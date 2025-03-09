@@ -87,9 +87,6 @@ RUN /opt/anaconda3/bin/conda install -y jupyterlab
 RUN mkdir /jupyter_config \
     && /opt/anaconda3/bin/jupyter lab --generate-config --config=/jupyter_config/jupyter_notebook_config.py
 
-# ldconfig permission 오류 방지
-RUN chmod u+s /sbin/ldconfig.real
-
 # entrypoint.sh 복사
 COPY entrypoint.sh /
 
