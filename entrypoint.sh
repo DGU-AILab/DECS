@@ -23,7 +23,7 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
         echo 'history -w $current_time.txt' >> /home/$USER_ID/.bash_logout
         echo 'sudo mv $current_time.txt /var/log/audit/' >> /home/$USER_ID/.bash_logout
     fi
-    useradd -s /bin/bash -d /home/$USER_ID -u $UID
+    useradd -s /bin/bash -d /home/$USER_ID -u $UID $USER_ID
 
     # sudo 권한 제공
     echo "$USER_ID ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
