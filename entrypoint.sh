@@ -96,9 +96,15 @@ fi
 # jupyter lab 접속 설정
 sed -i "1i c.JupyterApp.config_file_name = 'jupyter_notebook_config.py'\nc.NotebookApp.allow_origin = '*'\nc.NotebookApp.ip = '0.0.0.0'\nc.NotebookApp.open_browser = False\nc.NotebookApp.allow_remote_access = True\nc.NotebookApp.allow_root = True\nc.NotebookApp.notebook_dir='/home/$USER_ID/decs_jupyter_lab'" /jupyter_config/jupyter_notebook_config.py
 
+# Jupyter Lab 토큰을 랜덤 문자열로 생성하고 저장
+TOKEN=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10)
+echo "$TOKEN" > /home/$USER_ID/decs_jupyter_lab/jupyter_token.txt
+chmod 600 /home/$USER_ID/decs_jupyter_lab/jupyter_token.txt
+chown $USER_ID:$USER_ID /home/$USER_ID/decs_jupyter_lab/jupyter_token.txt
+
 # jupyter_lab 기동
 echo "trying jupyter lab..."
-nohup /opt/anaconda3/bin/jupyter lab --NotebookApp.token=decs --config=/jupyter_config/jupyter_notebook_config.py >/dev/null 2>&1 &
+nohup /opt/anaconda3/bin/jupyter lab --NotebookApp.token=$TOKEN --config=/jupyter_config/jupyter_notebook_config.py >/dev/null 2>&1 &
 echo "jupyter lab listening!"
 
 # ldconfig permission 오류 방지
