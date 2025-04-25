@@ -93,6 +93,14 @@ if [ ! -d "/home/$USER_ID/decs_jupyter_lab" ]; then
   echo "Created /home/$USER_ID/decs_jupyter_lab dir...."
 fi
 
+
+# 해당 경로에 config 파일을 생성
+CONFIG_PATH="/jupyter_config/jupyter_notebook_config.py"
+if [ ! -f "$CONFIG_PATH" ]; then
+	  jupyter notebook --generate-config --config-dir=/jupyter_config
+fi
+
+
 # jupyter lab 접속 설정
 sed -i "1i c.JupyterApp.config_file_name = 'jupyter_notebook_config.py'\nc.NotebookApp.allow_origin = '*'\nc.NotebookApp.ip = '0.0.0.0'\nc.NotebookApp.open_browser = False\nc.NotebookApp.allow_remote_access = True\nc.NotebookApp.allow_root = True\nc.NotebookApp.notebook_dir='/home/$USER_ID/decs_jupyter_lab'" /jupyter_config/jupyter_notebook_config.py
 
