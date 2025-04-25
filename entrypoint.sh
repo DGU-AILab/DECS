@@ -97,7 +97,8 @@ fi
 # 해당 경로에 config 파일을 생성
 CONFIG_PATH="/jupyter_config/jupyter_notebook_config.py"
 if [ ! -f "$CONFIG_PATH" ]; then
-	  jupyter notebook --generate-config --config-dir=/jupyter_config
+	 /opt/anaconda3/bin/jupyter notebook --generate-config --config-dir=/jupyter_config
+	 echo "config create"
 fi
 
 
