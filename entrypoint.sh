@@ -95,7 +95,10 @@ fi
 
 
 # 해당 경로에 config 파일을 생성 - 직접 생성
-jupyter notebook --generate-config --config /jupyter_config/jupyter_notebook_config.py
+jupyter notebook --generate-config --config
+
+cp /home/$USER_ID/.jupyter/jupyter_notebook_config.py /jupyter_config/jupyter_notebook_config.py
+
 
 echo "Config 파일 생성 완료"
 
