@@ -94,21 +94,10 @@ if [ ! -d "/home/$USER_ID/decs_jupyter_lab" ]; then
 fi
 
 
-# 해당 경로에 config 파일을 생성
-if [ ! -f /jupyter_config/jupyter_notebook_config.py ]; then
-	 cat << EOF > /jupyter_config/jupyter_notebook_config.py
-c = get_config()
-c.NotebookApp.ip = '0.0.0.0'
-c.NotebookApp.open_browser = False
-c.NotebookApp.allow_origin = '*'
-c.NotebookApp.allow_remote_access = True
-c.NotebookApp.allow_root = True
-c.NotebookApp.notebook_dir = '/home/$USER_ID/decs_jupyter_lab'
-EOF
-    echo "Config 파일 생성 완료"
-else
-    echo "Config 파일이 이미 존재합니다"
-fi
+# 해당 경로에 config 파일을 생성 - 직접 생성
+jupyter notebook --generate-config --config /jupyter_config/jupyter_notebook_config.py
+
+echo "Config 파일 생성 완료"
 
 
 # jupyter lab 접속 설정
