@@ -93,18 +93,19 @@ if [ ! -d "/home/$USER_ID/decs_jupyter_lab" ]; then
   echo "Created /home/$USER_ID/decs_jupyter_lab dir...."
 fi
 
+# jupyter lab config 파일이 없으면 생성
+mkdir -p /home/$USER_ID/.jupyter/
 
-# 해당 경로에 config 파일을 생성 - 직접 생성
-jupyter notebook --generate-config --config
-
-cp /home/$USER_ID/.jupyter/jupyter_notebook_config.py /jupyter_config/jupyter_notebook_config.py
-
-
-echo "Config 파일 생성 완료"
-
+if [ ! -f /home/$USER_ID/.jupyter/jupyter_notebook_config.py ]; then
+        echo "jupyter_notebook_config.py not found, generating..."
+        /opt/anaconda3/bin/jupyter notebook --generate-config
+        cp /root/.jupyter/jupyter_notebook_config.py /home/$USER_ID/.jupyter/
+else
+        echo "jupyter_notebook_config.py already exists."
+fi
 
 # jupyter lab 접속 설정
-sed -i "1i c.JupyterApp.config_file_name = 'jupyter_notebook_config.py'\nc.NotebookApp.allow_origin = '*'\nc.NotebookApp.ip = '0.0.0.0'\nc.NotebookApp.open_browser = False\nc.NotebookApp.allow_remote_access = True\nc.NotebookApp.allow_root = True\nc.NotebookApp.notebook_dir='/home/$USER_ID/decs_jupyter_lab'" /jupyter_config/jupyter_notebook_config.py
+sed -i "1i c.JupyterApp.config_file_name = 'jupyter_notebook_config.py'\nc.NotebookApp.allow_origin = '*'\nc.NotebookApp.ip = '0.0.0.0'\nc.NotebookApp.open_browser = False\nc.NotebookApp.allow_remote_access = True\nc.NotebookApp.allow_root = True\nc.NotebookApp.notebook_dir='/home/$USER_ID/decs_jupyter_lab'" /home/$USER_ID/.jupyter/jupyter_notebook_config.py
 
 # Jupyter Lab 토큰을 랜덤 문자열로 생성하고 저장
 TOKEN=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10)
@@ -114,7 +115,7 @@ chown $USER_ID:$USER_ID /home/$USER_ID/decs_jupyter_lab/jupyter_token.txt
 
 # jupyter_lab 기동
 echo "trying jupyter lab..."
-nohup /opt/anaconda3/bin/jupyter lab --NotebookApp.token=$TOKEN --config=/jupyter_config/jupyter_notebook_config.py >/dev/null 2>&1 &
+nohup /opt/anaconda3/bin/jupyter lab --NotebookApp.token=$TOKEN --config=/home/$USER_ID/.jupyter/jupyter_notebook_config.py >/dev/null 2>&1 &
 echo "jupyter lab listening!"
 
 # ldconfig permission 오류 방지
