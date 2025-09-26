@@ -4,7 +4,6 @@ sudo apt update
 sudo apt install -y auditd
 
 # /etc/audit/audit.rules 파일에 줄 추가
-# sed -i "/^#-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$USER_ID -k rm_commands" /etc/audit/audit.rules
 echo "-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$USER_ID -k rm_commands" >> /etc/audit/audit.rules
 
 # history 명령어 칠 때 명령어를 입력한 시간이 같이 나오게 하는 명령어
@@ -15,7 +14,7 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     # 유저 디렉토리 존재하지 않는 경우, 디렉토리와 skel 생성
     if [ ! -d "/home/$USER_ID/" ]; then
         cp -R /etc/skel/. "/home/$USER_ID"
-        chmod -R 700 "/home/$USER_ID"
+        chmod -R 700 "/home/$USER_ID" # 초기 권한 설정 후 아래에서 변경
         
         # history -w 현재시간.txt파일을 만들고, /var/log/audit로 이동하는 부분임. 사용자가 로그아웃 할 때
         echo 'cd ~' >> /home/$USER_ID/.bash_logout
@@ -31,29 +30,21 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     # 비밀번호 설정
     echo "$USER_ID:$USER_PW" | chpasswd
 
-    # 소유권 지정
-    chown -R "$USER_ID:$USER_ID" "/home/$USER_ID"
-
     # 서버관리자와 유저계정의 ssh 접속을 허용 및 다중접속 허용
     sed -i "/^#PermitRootLogin/a AllowUsers svmanager" /etc/ssh/sshd_config
     sed -i "/^#PermitRootLogin/a AllowUsers $USER_ID" /etc/ssh/sshd_config
     sed -i 's/^UsePAM yes/UsePAM no/' /etc/ssh/sshd_config
 fi
 
-if [ "$USER_ID" != "$USER_GROUP" ]; then
-    groupadd -g $GID $USER_GROUP
-    usermod -aG $USER_GROUP $USER_ID
-    if [ ! -d "/home/$USER_GROUP/" ]; then
-        # 폴더 생성
-        mkdir /home/$USER_GROUP
-        echo "Created /home/$USER_GROUP...."
-
-        # 그룹의 공유 디렉토리의 모든 파일의 소유권 설정
-        chown -R svmanager:$USER_GROUP /home/$USER_GROUP
-        # 그룹의 공유 디렉토리의 권한 설정
-        chmod -R 770 /home/$USER_GROUP
-    fi
+# 그룹이 존재하지 않을 경우 생성하고 사용자를 그룹에 추가
+if ! getent group "$USER_GROUP" >/dev/null 2>&1; then
+    groupadd -g $GID "$USER_GROUP"
 fi
+usermod -aG "$USER_GROUP" "$USER_ID"
+
+# 사용자와 그룹이 모두 준비된 후, 소유권과 권한을 설정합니다.
+chown -R "$USER_ID:$USER_GROUP" "/home/$USER_ID"
+chmod 750 "/home/$USER_ID"
 
 
 # MOTD 공지 출력하도록 설정
@@ -89,8 +80,8 @@ service ssh restart
 
 # jupyter lab 에서 생성한 ipynb 파일을 저장할 디렉토리 생성 (없는경우만 신규 생성)
 if [ ! -d "/home/$USER_ID/decs_jupyter_lab" ]; then
-  mkdir /home/$USER_ID/decs_jupyter_lab
-  echo "Created /home/$USER_ID/decs_jupyter_lab dir...."
+    mkdir /home/$USER_ID/decs_jupyter_lab
+    echo "Created /home/$USER_ID/decs_jupyter_lab dir...."
 fi
 
 # jupyter lab 접속 설정
