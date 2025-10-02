@@ -1,37 +1,26 @@
-
-# 이 파일은 decs:241102 이미지의 Dockerfile 입니다.
+# 이 파일은 decs:251002 이미지의 Dockerfile 입니다.
 ############################# version history #############################
 
-###### decs:1.4 변경 사항 ######
-# 변경한 사람: 박민균 관리자
-# tensorflow version 2.6.0-gpu
-# xrdp 관련 명령어 제거
-# Anaconda 설치 및 환경설정 명령어 추가
-
-##### decs:1.4.18 변경 사항 #####
-# 변경한 사람: 박민균 관리자
-# tensorflow version 2.6.0-gpu -> 2.13.0-gpu 
-
-
-##### decs:241102 #####
-# 변경한 사람: 김민기 관리자
-# 변경 사항 없음
+##### decs:251002#####
+# 변경한 사람: 이소은
+# tensorflow version 2.13.0-gpu -> 2.18.0-gpu
 
 ########################### version history end ##########################
 
-# https://hub.docker.com/layers/tensorflow/tensorflow/2.13.0-gpu/images/sha256-b4676741c491bff3d0f29c38c369281792c7d5c5bfa2b1aa93e5231a8d236323
-FROM tensorflow/tensorflow:2.13.0-gpu
-# # 설치 시 geographic area 를 물어보지 않도록 설정(apt install 시 interrupted 됨)
+# TensorFlow 2.18.0 GPU 공식 이미지 사용 (CUDA 12.3, cuDNN 8.9 포함, Ubuntu 22.04 기반)
+# https://hub.docker.com/layers/tensorflow/tensorflow/2.18.0-gpu/images/sha256-b076938b81335b8098a58a9e701ea183a652f146419f8601550c000f576e3cc4
+FROM tensorflow/tensorflow:2.18.0-gpu
+
+# 설치 시 geographic area 를 물어보지 않도록 설정(apt install 시 interrupted 됨)
 ENV DEBIAN_FRONTEND noninteractive
 
 ENV SUDOER_ID svmanager
 ENV SUDOER_PW decs2260
 ENV SUDOER_DIR /$SUDOER_ID
 ENV SSHD_CONFIG_PATH /etc/ssh/sshd_config
-# RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
 
+# tensorflow:2.18.0-gpu 베이스 이미지는 이미 NVIDIA 관련 키와 저장소가 설정되어 있으므로, 불필요한 키 추가 명령어 제거
 RUN apt-get clean \
-&& apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A4B469963BF863CC \
 && apt-get -y update \
 && apt install -y \
 sudo \
@@ -42,7 +31,7 @@ vim \
 wget \
 curl \
 ssh \
-software-properties-common 
+software-properties-common
 
 # motd install
 RUN apt-get update && apt-get install -y update-motd
@@ -62,7 +51,7 @@ RUN echo $SUDOER_ID:$SUDOER_PW | chpasswd
 # decs dir 을 생성
 RUN mkdir /home/decs
 
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add - \
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
     && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
     && apt-get update && apt-get install -y google-chrome-stable
 
@@ -76,14 +65,14 @@ RUN wget https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh \
     && bash Anaconda3-2024.10-1-Linux-x86_64.sh -b -p /opt/anaconda3 \
     && rm Anaconda3-2024.10-1-Linux-x86_64.sh
 
-ENV PATH opt/anaconda3/bin:$PATH
-RUN echo "export PATH="/opt/anaconda3/bin:$PATH >> /etc/profile \
+ENV PATH /opt/anaconda3/bin:$PATH
+RUN echo "export PATH="/opt/anaconda3/bin:$PATH"" >> /etc/profile \
     && /opt/anaconda3/bin/conda init
 
-# # jupyterlab 설치
+# jupyterlab 설치
 RUN /opt/anaconda3/bin/conda install -y jupyterlab
 
-# # jupyterlab 설정파일 생성
+# jupyterlab 설정파일 생성
 RUN mkdir /jupyter_config \
     && /opt/anaconda3/bin/jupyter lab --generate-config --config=/jupyter_config/jupyter_notebook_config.py
 
