@@ -1,37 +1,47 @@
-name: CI/CD - Docker Image Build and Push
+name: CI/CD - Docker Image from DECS Branch
 
-# 1. 워크플로우 실행 조건: main 브랜치에 push 이벤트가 발생했을 때
+# 1. 실행 조건 변경: 'develop' 브랜치를 대상으로 하는 PR이 닫혔을 때
 on:
-  push:
-    branches: [ "develop" ]
+  pull_request:
+    types: [closed]
+    branches: [ "develop" ] # 타겟 브랜치
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest # 작업이 실행될 가상 머신 환경
+    # 2. 상세 실행 조건: PR이 '병합'되었고, 소스 브랜치가 'decs'로 시작할 때만 실행
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'decs')
+    runs-on: ubuntu-latest
 
     steps:
-      # 2. 코드 체크아웃: GitHub 저장소의 코드를 가상 머신으로 가져옴
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 3. Docker Hub 로그인: 1단계에서 저장한 Secrets를 사용해 Docker Hub에 로그인
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCK_USERNAME }}
+          password: ${{ secrets.DOCK_TOKEN }}
 
-      # 4. 이미지 태그 동적 생성: 날짜 기반으로 이미지 태그를 만듦 (예: decs:251002)
-      - name: Generate image tag
+      # 3. 태그 추출 방식 변경: 'decs' 접두사 제거
+      - name: Generate tag from branch name
         id: generate_tag
-        run: echo "TAG_NAME=decs:$(date +'%y%m%d')" >> $GITHUB_OUTPUT
+        run: |
+          # 병합된 브랜치 이름을 가져옴 (예: 'decs251002')
+          BRANCH_NAME=${{ github.event.pull_request.head.ref }}
+          
+          # 'decs' 접두사를 제거하여 버전만 추출 (예: '251002')
+          TAG_VERSION=${BRANCH_NAME#decs}
+          
+          echo "Extracted tag version: $TAG_VERSION"
+          
+          # 다음 단계에서 사용할 수 있도록 태그 이름을 GITHUB_OUTPUT에 저장
+          echo "TAG_NAME=$TAG_VERSION" >> $GITHUB_OUTPUT
 
-      # 5. Docker 이미지 빌드 및 푸시
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .         # Dockerfile이 있는 경로 (저장소 최상위)
-          push: true         # 빌드 후 Docker Hub로 푸시
+          context: .
+          push: true
           tags: |
             dguailab/decs:${{ steps.generate_tag.outputs.TAG_NAME }}
             dguailab/decs:latest
