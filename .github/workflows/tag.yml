@@ -1,0 +1,40 @@
+name: Create Tag from Merged Branch
+
+# 워크플로우 실행 조건 설정
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - 'main'
+
+jobs:
+  tag-from-branch:
+    # PR이 'merged' 상태일 때만 job을 실행 (그냥 닫힌 경우는 제외)
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 저장소 코드를 체크아웃
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. 병합된 브랜치 이름으로 태그 생성 및 푸시
+      - name: Create and Push Tag
+        run: |
+          # 병합된 브랜치(head_ref)의 이름을 변수로 저장
+          BRANCH_NAME=${{ github.event.pull_request.head.ref }}
+          
+          echo "Merged branch name is: $BRANCH_NAME"
+          
+          # Git 사용자 설정 (Action이 커밋/태그를 생성하기 위해 필요)
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          
+          # 브랜치 이름으로 Annotated Tag 생성
+          git tag -a "$BRANCH_NAME" -m "Tag automatically created from merged branch: $BRANCH_NAME"
+          
+          # 생성된 태그를 원격 저장소로 푸시
+          git push origin "$BRANCH_NAME"
+          
+          echo "Successfully created and pushed tag: $BRANCH_NAME"
