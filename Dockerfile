@@ -19,7 +19,6 @@ ENV SUDOER_PW decs2260
 ENV SUDOER_DIR /$SUDOER_ID
 ENV SSHD_CONFIG_PATH /etc/ssh/sshd_config
 
-# tensorflow:2.18.0-gpu 베이스 이미지는 이미 NVIDIA 관련 키와 저장소가 설정되어 있으므로, 불필요한 키 추가 명령어 제거
 RUN apt-get clean \
 && apt-get -y update \
 && apt install -y \
