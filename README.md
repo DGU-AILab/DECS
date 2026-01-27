@@ -3,7 +3,8 @@
 
 | 이미지 태그 (Image Tag) | TensorFlow 버전 | CUDA / cuDNN | 베이스 OS (Base OS) | 주요 변경사항 및 설명 |
 | :--- | :--- | :--- | :--- | :--- |
-| `dguailab/decs:latest`<br>`dguailab/decs:251002` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | **(최신)** TensorFlow 2.18.0 업그레이드, 최신 GPU 환경 지원 |
+| `dguailab/decs:latest`<br>`dguailab/decs:251023` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | **(최신)** Jupyter Notebook 버전 변경으로 인한 오류 해결 버전 |
+| `dguailab/decs:251002` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | **(이전 안정 버전)** TensorFlow 2.18.0 업그레이드, 최신 GPU 환경 지원 |
 | `dguailab/decs:250926` | **2.13.0** | CUDA 11.8<br>cuDNN 8.6 | Ubuntu 20.04 | **(이전 안정 버전)** TensorFlow 2.13.0 기반의 안정화 버전 |
 
 ## ⚙️ 사용 방법
