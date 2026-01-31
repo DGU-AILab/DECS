@@ -64,6 +64,9 @@ resulting from failing to check and respond within 24 hours of a Slack notice.
 \e[0m"
 EOF
 
+# 의도되지 않은 MOTD 출력 방지
+sed -i.bak '/^[[:space:]]*else[[:space:]]*$/,/^[[:space:]]*EXPL[[:space:]]*$/d' /etc/bash.bashrc
+
 for file in /etc/update-motd.d/60-unminimize /etc/update-motd.d/10-help-text; do
     if [[ -f "$file" ]]; then
         sed -i '/^[^#]/ s/^/#/' "$file"
