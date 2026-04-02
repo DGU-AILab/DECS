@@ -2,7 +2,6 @@
 set -euo pipefail
 
 : "${USER_ID:?USER_ID is required}"
-: "${USER_PW:?USER_PW is required}"
 : "${TARGET_UID:?TARGET_UID is required}"
 
 USER_GROUP="${USER_GROUP:-$USER_ID}"
@@ -11,6 +10,57 @@ USER_HOME="/home/$USER_ID"
 JUPYTER_DIR="$USER_HOME/decs_jupyter_lab"
 JUPYTER_CONFIG_DIR="$USER_HOME/.jupyter"
 JUPYTER_CONFIG_FILE="$JUPYTER_CONFIG_DIR/jupyter_notebook_config.py"
+
+ensure_account_matches_mounts() {
+    local passwd_entry
+    local group_entry
+    local actual_uid
+    local actual_gid
+    local actual_home
+    local actual_group_gid
+
+    passwd_entry="$(getent passwd "$USER_ID" || true)"
+    if [[ -z "$passwd_entry" ]]; then
+        echo "[ERROR] User '$USER_ID' not found in mounted /etc/passwd" >&2
+        exit 1
+    fi
+
+    IFS=: read -r _ _ actual_uid actual_gid _ actual_home _ <<<"$passwd_entry"
+
+    if [[ "$actual_uid" != "$TARGET_UID" ]]; then
+        echo "[ERROR] USER_ID '$USER_ID' has uid '$actual_uid', expected '$TARGET_UID'" >&2
+        exit 1
+    fi
+
+    if [[ "$actual_gid" != "$TARGET_GID" ]]; then
+        echo "[ERROR] USER_ID '$USER_ID' has gid '$actual_gid', expected '$TARGET_GID'" >&2
+        exit 1
+    fi
+
+    if [[ "$actual_home" != "$USER_HOME" ]]; then
+        echo "[ERROR] USER_ID '$USER_ID' has home '$actual_home', expected '$USER_HOME'" >&2
+        exit 1
+    fi
+
+    group_entry="$(getent group "$USER_GROUP" || true)"
+    if [[ -z "$group_entry" ]]; then
+        echo "[ERROR] Group '$USER_GROUP' not found in mounted /etc/group" >&2
+        exit 1
+    fi
+
+    IFS=: read -r _ _ actual_group_gid _ <<<"$group_entry"
+    if [[ "$actual_group_gid" != "$TARGET_GID" ]]; then
+        echo "[ERROR] USER_GROUP '$USER_GROUP' has gid '$actual_group_gid', expected '$TARGET_GID'" >&2
+        exit 1
+    fi
+}
+
+ensure_sshd_allow_user() {
+    local user_name="$1"
+    if ! grep -qxF "AllowUsers $user_name" /etc/ssh/sshd_config; then
+        printf '\nAllowUsers %s\n' "$user_name" >> /etc/ssh/sshd_config
+    fi
+}
 
 apt-get update
 apt-get install -y auditd
@@ -22,48 +72,17 @@ echo "-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F 
 echo 'HISTTIMEFORMAT="[%Y-%m-%d %H:%M:%S] "' >> /etc/profile
 echo 'export HISTTIMEFORMAT' >> /etc/profile
 
-# 그룹과 사용자를 먼저 준비한다.
-if ! getent group "$USER_GROUP" >/dev/null 2>&1; then
-    groupadd -g "$TARGET_GID" "$USER_GROUP"
-fi
+ensure_account_matches_mounts
 
-if ! id "$USER_ID" >/dev/null 2>&1; then
-    if [ ! -d "$USER_HOME" ]; then
-        cp -R /etc/skel/. "$USER_HOME"
-        chmod -R 700 "$USER_HOME"
-
-        # history -w 현재시간.txt파일을 만들고, /var/log/audit로 이동하는 부분임. 사용자가 로그아웃 할 때
-        echo 'cd ~' >> "$USER_HOME/.bash_logout"
-        echo 'current_time=$(date +%Y-%m-%d_%H-%M-%S)' >> "$USER_HOME/.bash_logout"
-        echo 'history -w $current_time.txt' >> "$USER_HOME/.bash_logout"
-        echo 'sudo mv $current_time.txt /var/log/audit/' >> "$USER_HOME/.bash_logout"
-    fi
-
-    useradd -s /bin/bash -d "$USER_HOME" -u "$TARGET_UID" -g "$USER_GROUP" "$USER_ID"
-
-    # sudo 권한 제공
-    echo "$USER_ID ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-
-    # 비밀번호 설정
-    echo "$USER_ID:$USER_PW" | chpasswd
-
-    # 서버관리자와 유저계정의 ssh 접속을 허용 및 다중접속 허용
-    sed -i "/^#PermitRootLogin/a AllowUsers svmanager" /etc/ssh/sshd_config
-    sed -i "/^#PermitRootLogin/a AllowUsers $USER_ID" /etc/ssh/sshd_config
-    sed -i 's/^UsePAM yes/UsePAM no/' /etc/ssh/sshd_config
-else
-    usermod -u "$TARGET_UID" "$USER_ID" || true
-    usermod -g "$USER_GROUP" "$USER_ID"
-fi
-
-usermod -aG "$USER_GROUP" "$USER_ID"
-
-# 사용자와 그룹이 모두 준비된 후, 소유권과 권한을 설정합니다.
-chown -R "$USER_ID:$USER_GROUP" "$USER_HOME"
+# admin_infra가 주입한 account files를 기준으로, writable path만 준비한다.
+mkdir -p "$USER_HOME"
+chown "$TARGET_UID:$TARGET_GID" "$USER_HOME"
 chmod 750 "$USER_HOME"
 
 # MOTD 공지 출력하도록 설정
 sed -i 's/^#\?UsePAM .*/UsePAM yes/' /etc/ssh/sshd_config
+ensure_sshd_allow_user "svmanager"
+ensure_sshd_allow_user "$USER_ID"
 cat <<EOF > /etc/default/motd-news
 ENABLED=1
 echo "\e[0;33m
@@ -98,7 +117,7 @@ service ssh restart
 
 # jupyter lab 에서 생성한 ipynb 파일을 저장할 디렉토리 생성 (없는경우만 신규 생성)
 mkdir -p "$JUPYTER_DIR" "$JUPYTER_CONFIG_DIR"
-chown -R "$USER_ID:$USER_GROUP" "$JUPYTER_DIR" "$JUPYTER_CONFIG_DIR"
+chown -R "$TARGET_UID:$TARGET_GID" "$JUPYTER_DIR" "$JUPYTER_CONFIG_DIR"
 
 if [ ! -f "$JUPYTER_CONFIG_FILE" ]; then
     echo "jupyter_notebook_config.py not found, generating..."
@@ -109,7 +128,7 @@ fi
 
 # jupyter lab 접속 설정
 sed -i "1i c.JupyterApp.config_file_name = 'jupyter_notebook_config.py'\nc.NotebookApp.allow_origin = '*'\nc.NotebookApp.ip = '0.0.0.0'\nc.NotebookApp.open_browser = False\nc.NotebookApp.allow_remote_access = True\nc.NotebookApp.allow_root = False\nc.NotebookApp.notebook_dir='$JUPYTER_DIR'" "$JUPYTER_CONFIG_FILE"
-chown "$USER_ID:$USER_GROUP" "$JUPYTER_CONFIG_FILE"
+chown "$TARGET_UID:$TARGET_GID" "$JUPYTER_CONFIG_FILE"
 
 # ldconfig permission 오류 방지
 # bash.bashrc에서 ldconfig 명령어 삭제 후 명령어 실행 및 결과 출력
