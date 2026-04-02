@@ -23,6 +23,7 @@ RUN apt-get clean \
 && apt-get -y update \
 && apt install -y \
 sudo \
+gosu \
 net-tools \
 fcitx-hangul \
 fonts-nanum* \
