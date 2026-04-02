@@ -57,6 +57,10 @@ ensure_account_matches_mounts() {
 
 ensure_sshd_allow_user() {
     local user_name="$1"
+    if ! getent passwd "$user_name" >/dev/null 2>&1; then
+        echo "[WARN] Skipping AllowUsers for missing account '$user_name'" >&2
+        return 0
+    fi
     if ! grep -qxF "AllowUsers $user_name" /etc/ssh/sshd_config; then
         printf '\nAllowUsers %s\n' "$user_name" >> /etc/ssh/sshd_config
     fi
