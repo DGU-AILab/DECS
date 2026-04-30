@@ -34,6 +34,23 @@ if ! id "$USER_ID" >/dev/null 2>&1; then
     sed -i "/^#PermitRootLogin/a AllowUsers svmanager" /etc/ssh/sshd_config
     sed -i "/^#PermitRootLogin/a AllowUsers $USER_ID" /etc/ssh/sshd_config
     sed -i 's/^UsePAM yes/UsePAM no/' /etc/ssh/sshd_config
+
+else
+
+    # 기존 유저 디렉토리의 /.bashrc에서 conda initialize 블록과 경고 주석을 제거
+    sed -i \
+        -e "/# !!! Do NOT delete the conda initialize comments below\. !!!/d" \
+        -e "/# !!! Do NOT add anything inside the conda initialize block\. It will be removed on container restart\/update\. !!!/d" \
+        -e "/# >>> conda initialize >>>/,/# <<< conda initialize <<</d" \
+        /home/$USER_ID/.bashrc
+
+    # /root/.bashrc에서 conda initialize 블록 추출해서 /home/$USER_ID/.bashrc에 추가
+    {
+        echo "# !!! Do NOT delete the conda initialize comments below. !!!"
+        echo "# !!! Do NOT add anything inside the conda initialize block. It will be removed on container restart/update. !!!"
+        sed -n '/# >>> conda initialize >>>/,/# <<< conda initialize <<</p' /root/.bashrc
+    } >> /home/$USER_ID/.bashrc
+
 fi
 
 # 그룹이 존재하지 않을 경우 생성하고 사용자를 그룹에 추가
