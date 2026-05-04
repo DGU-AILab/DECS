@@ -145,8 +145,15 @@ EOF
     echo "TigerVNC listening on localhost:$vnc_port"
 
     pkill -f "websockify.*$novnc_port" >/dev/null 2>&1 || true
+    # /tmp/novnc.log를 사용자 소유로 미리 만들어 강등된 권한에서도 append 가능하게 한다.
+    : > /tmp/novnc.log
+    chown "$TARGET_UID:$TARGET_GID" /tmp/novnc.log
+    chmod 640 /tmp/novnc.log
     echo "trying noVNC on 0.0.0.0:$novnc_port..."
-    nohup websockify --web=/usr/share/novnc "0.0.0.0:$novnc_port" "localhost:$vnc_port" >/tmp/novnc.log 2>&1 &
+    # 비특권 포트(6080)이므로 root 권한이 불필요하다. 사용자 권한으로 강등 실행.
+    nohup gosu "$USER_ID:$USER_GROUP" env HOME="$USER_HOME" USER="$USER_ID" \
+        websockify --web=/usr/share/novnc "0.0.0.0:$novnc_port" "localhost:$vnc_port" \
+        >/tmp/novnc.log 2>&1 &
     echo "noVNC listening on port $novnc_port. VNC password saved to $vnc_password_file"
 }
 
