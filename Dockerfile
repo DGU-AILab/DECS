@@ -5,6 +5,10 @@
 # 변경한 사람: 이소은
 # tensorflow version 2.13.0-gpu -> 2.18.0-gpu
 
+##### decs:260501#####
+# 변경한 사람: 임준영
+# Xfce, TigerVNC, noVNC 기반 GUI 접속 지원 추가
+
 ########################### version history end ##########################
 
 # TensorFlow 2.18.0 GPU 공식 이미지 사용 (CUDA 12.3, cuDNN 8.9 포함, Ubuntu 22.04 기반)
@@ -31,6 +35,13 @@ vim \
 wget \
 curl \
 ssh \
+dbus-x11 \
+xfce4 \
+xfce4-terminal \
+tigervnc-standalone-server \
+tigervnc-common \
+novnc \
+websockify \
 software-properties-common
 
 # motd install
@@ -78,6 +89,9 @@ RUN mkdir /jupyter_config \
 
 # entrypoint.sh 복사
 COPY entrypoint.sh /
+
+# noVNC 접속 포트. VNC 서버(5901)는 localhost에만 바인딩합니다.
+EXPOSE 6080
 
 # SSHD 서버를 실행하고, entrypoint 파일을 start/restart 시 마다 실행, dev/null에 entrypoint 로그를 저장
 RUN chmod +x /entrypoint.sh
