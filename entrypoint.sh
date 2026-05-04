@@ -66,6 +66,89 @@ ensure_sshd_allow_user() {
     fi
 }
 
+start_novnc() {
+    case "${ENABLE_VNC:-false}" in
+        true|TRUE|1|yes|YES|on|ON) ;;
+        *)
+            echo "VNC/noVNC disabled. Set ENABLE_VNC=true to enable it."
+            return 0
+            ;;
+    esac
+
+    local vnc_dir="$USER_HOME/.vnc"
+    local vnc_display="${VNC_DISPLAY:-1}"
+    local vnc_resolution="${VNC_RESOLUTION:-1920x1080}"
+    local vnc_depth="${VNC_DEPTH:-24}"
+    local novnc_port="${NOVNC_PORT:-6080}"
+    local vnc_password_file="$JUPYTER_DIR/vnc_password.txt"
+    local vnc_password
+
+    vnc_display="${vnc_display#:}"
+    if ! [[ "$vnc_display" =~ ^[0-9]+$ && "$novnc_port" =~ ^[0-9]+$ && "$vnc_depth" =~ ^[0-9]+$ ]]; then
+        echo "Invalid VNC configuration. Check VNC_DISPLAY, NOVNC_PORT, and VNC_DEPTH."
+        return 1
+    fi
+    local vnc_port=$((5900 + vnc_display))
+
+    if ! command -v vncserver >/dev/null 2>&1 || ! command -v websockify >/dev/null 2>&1; then
+        echo "VNC/noVNC packages are not installed. Skipping GUI startup."
+        return 0
+    fi
+
+    mkdir -p "$vnc_dir" "$JUPYTER_DIR" /tmp/.X11-unix /tmp/.ICE-unix
+    chown root:root /tmp/.X11-unix /tmp/.ICE-unix
+    chmod 1777 /tmp/.X11-unix /tmp/.ICE-unix
+
+    if [[ -n "${VNC_PASSWORD:-}" ]]; then
+        vnc_password="$VNC_PASSWORD"
+    elif [[ -s "$vnc_password_file" ]]; then
+        vnc_password=$(tr -d '\r\n' < "$vnc_password_file" | head -c 8)
+    else
+        vnc_password=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8)
+    fi
+    vnc_password="${vnc_password:0:8}"
+
+    if [[ -z "$vnc_password" ]]; then
+        echo "Failed to prepare VNC password. Skipping GUI startup."
+        return 1
+    fi
+
+    printf "%s\n" "$vnc_password" > "$vnc_password_file"
+    chmod 600 "$vnc_password_file"
+
+    printf "%s\n" "$vnc_password" | vncpasswd -f > "$vnc_dir/passwd"
+    chmod 600 "$vnc_dir/passwd"
+
+    cat > "$vnc_dir/xstartup" <<'EOF'
+#!/bin/sh
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+export XDG_SESSION_TYPE=x11
+export XKL_XMODMAP_DISABLE=1
+xrdb "$HOME/.Xresources" 2>/dev/null || true
+exec dbus-launch --exit-with-session startxfce4
+EOF
+    chmod +x "$vnc_dir/xstartup"
+    chown -R "$TARGET_UID:$TARGET_GID" "$vnc_dir" "$vnc_password_file"
+
+    gosu "$USER_ID:$USER_GROUP" env HOME="$USER_HOME" USER="$USER_ID" \
+        vncserver -kill ":$vnc_display" >/tmp/vnc-kill.log 2>&1 || true
+
+    echo "trying TigerVNC on localhost:$vnc_port..."
+    if ! gosu "$USER_ID:$USER_GROUP" env HOME="$USER_HOME" USER="$USER_ID" \
+        vncserver -localhost yes ":$vnc_display" -geometry "$vnc_resolution" -depth "$vnc_depth" >/tmp/vncserver.log 2>&1; then
+        echo "TigerVNC startup failed. See /tmp/vncserver.log."
+        cat /tmp/vncserver.log
+        return 1
+    fi
+    echo "TigerVNC listening on localhost:$vnc_port"
+
+    pkill -f "websockify.*$novnc_port" >/dev/null 2>&1 || true
+    echo "trying noVNC on 0.0.0.0:$novnc_port..."
+    nohup websockify --web=/usr/share/novnc "0.0.0.0:$novnc_port" "localhost:$vnc_port" >/tmp/novnc.log 2>&1 &
+    echo "noVNC listening on port $novnc_port. VNC password saved to $vnc_password_file"
+}
+
 apt-get update
 apt-get install -y auditd
 
@@ -133,6 +216,9 @@ fi
 # jupyter lab 접속 설정
 sed -i "1i c.JupyterApp.config_file_name = 'jupyter_notebook_config.py'\nc.NotebookApp.allow_origin = '*'\nc.NotebookApp.ip = '0.0.0.0'\nc.NotebookApp.open_browser = False\nc.NotebookApp.allow_remote_access = True\nc.NotebookApp.allow_root = False\nc.NotebookApp.notebook_dir='$JUPYTER_DIR'" "$JUPYTER_CONFIG_FILE"
 chown "$TARGET_UID:$TARGET_GID" "$JUPYTER_CONFIG_FILE"
+
+# noVNC 기동. 외부에서는 컨테이너의 6080 포트를 매핑해서 접속합니다.
+start_novnc || echo "VNC/noVNC startup failed."
 
 # ldconfig permission 오류 방지
 # bash.bashrc에서 ldconfig 명령어 삭제 후 명령어 실행 및 결과 출력
