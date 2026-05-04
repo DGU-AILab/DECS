@@ -166,6 +166,17 @@ mkdir -p "$USER_HOME"
 chown "$TARGET_UID:$TARGET_GID" "$USER_HOME"
 chmod 750 "$USER_HOME"
 
+# 사용자 홈에 dotfile이 없으면 /etc/skel에서 부트스트랩한다.
+# 로그인 셸이 ~/.profile → ~/.bashrc 체인으로 PS1을 정상화하도록 보장한다.
+for skel_file in .profile .bashrc .bash_logout; do
+    src="/etc/skel/$skel_file"
+    dst="$USER_HOME/$skel_file"
+    if [[ -f "$src" && ! -e "$dst" ]]; then
+        install -m 644 -o "$TARGET_UID" -g "$TARGET_GID" "$src" "$dst"
+    fi
+done
+unset skel_file src dst
+
 # MOTD 공지 출력하도록 설정
 sed -i 's/^#\?UsePAM .*/UsePAM yes/' /etc/ssh/sshd_config
 ensure_sshd_allow_user "svmanager"
@@ -194,6 +205,11 @@ for file in /etc/update-motd.d/60-unminimize /etc/update-motd.d/10-help-text; do
     fi
 done
 sed -i.bak '/echo -e "\\e\[1;31m"/d; /cat<<TF/,/TF/d' /etc/bash.bashrc
+
+# TF 베이스 이미지가 박아둔 tf-docker PS1과 자동 cd $HOME 라인 제거.
+# 로그인 셸에서 /etc/profile -> /etc/bash.bashrc 경로로 tf-docker 프롬프트가
+# 노출되는 현상을 방지한다.
+sed -i.bak '/tf-docker/d; /^cd "\$HOME"$/d' /etc/bash.bashrc
 
 if [[ -f "/etc/legal" ]]; then
     rm /etc/legal
