@@ -102,9 +102,10 @@ start_novnc() {
     if [[ -n "${VNC_PASSWORD:-}" ]]; then
         vnc_password="$VNC_PASSWORD"
     elif [[ -s "$vnc_password_file" ]]; then
-        vnc_password=$(tr -d '\r\n' < "$vnc_password_file" | head -c 8)
+        # head가 먼저 종료되며 tr이 SIGPIPE를 받아 pipefail로 실패 판정되는 것을 막는다.
+        vnc_password=$(tr -d '\r\n' < "$vnc_password_file" | head -c 8 || true)
     else
-        vnc_password=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8)
+        vnc_password=$(head -c 64 /dev/urandom | tr -dc 'A-Za-z0-9' | head -c 8 || true)
     fi
     vnc_password="${vnc_password:0:8}"
 
@@ -243,7 +244,7 @@ ldconfig && echo "ldconfig executed successfully" || echo "ldconfig failed"
 
 # Jupyter 실행과 컨테이너 유지는 비-root 사용자로 전환한다.
 exec gosu "$USER_ID:$USER_GROUP" bash -lc '
-TOKEN=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10)
+TOKEN=$(head -c 64 /dev/urandom | tr -dc A-Za-z0-9 | head -c 10 || true)
 echo "$TOKEN" > "'"$JUPYTER_DIR"'/jupyter_token.txt"
 chmod 600 "'"$JUPYTER_DIR"'/jupyter_token.txt"
 echo "trying jupyter lab..."
