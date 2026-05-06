@@ -3,7 +3,8 @@
 
 | 이미지 태그 (Image Tag) | TensorFlow 버전 | CUDA / cuDNN | 베이스 OS (Base OS) | 주요 변경사항 및 설명 |
 | :--- | :--- | :--- | :--- | :--- |
-| `dguailab/decs:latest`<br>`dguailab/decs:260501` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | **(최신)** Xfce + TigerVNC + noVNC 기반 브라우저 GUI 접속 지원 추가 |
+| `dguailab/decs:latest`<br>`dguailab/decs:260505` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | **(최신)** Bashrc 수정 및 260501버전에 계정/권한 검증 강화 |
+| `dguailab/decs:latest`<br>`dguailab/decs:260501` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | Xfce + TigerVNC + noVNC 기반 브라우저 GUI 접속 지원 추가 |
 | `dguailab/decs:260427` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | 기존 사용자 컨테이너 변경 시 `~/.bashrc`의 conda initialize 블록 갱신, 경고 주석 영문화 및 인덴트 수정 |
 | `dguailab/decs:260403` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | 계정/권한 검증 강화, config-server 주입 기반 sudo 권한 축소, Jupyter 및 컨테이너 유지 프로세스 비-root 실행, gosu 추가 |
 | `dguailab/decs:260201` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | 의도되지 않은 MOTD 출력 방지 버그 수정 |
