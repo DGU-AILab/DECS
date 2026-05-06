@@ -1,5 +1,7 @@
 #!/bin/bash
 
+USER_PW="${USER_PW:-ailab2260}"
+
 start_novnc() {
     case "${ENABLE_VNC:-false}" in
         true|TRUE|1|yes|YES|on|ON) ;;
