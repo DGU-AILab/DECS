@@ -43,7 +43,7 @@ docker pull dguailab/decs:250926
 - 컨테이너 내부 noVNC 포트: `6080`
 - 컨테이너 내부 VNC 포트: `localhost:5901` 전용
 - 접속 URL: `http://서버주소:외부포트/vnc.html`
-- VNC 비밀번호 저장 위치: `/home/$USER_ID/decs_jupyter_lab/vnc_password.txt`
+- VNC 비밀번호 저장 위치: `/home/$USER_ID/vnc_password.txt`
 
 직접 `docker run`을 사용할 때는 다음처럼 환경변수와 포트를 함께 지정합니다.
 

@@ -17,7 +17,7 @@ start_novnc() {
     local vnc_resolution="${VNC_RESOLUTION:-1920x1080}"
     local vnc_depth="${VNC_DEPTH:-24}"
     local novnc_port="${NOVNC_PORT:-6080}"
-    local vnc_password_file="$user_home/decs_jupyter_lab/vnc_password.txt"
+    local vnc_password_file="$user_home/vnc_password.txt"
     local vnc_password
 
     vnc_display="${vnc_display#:}"
