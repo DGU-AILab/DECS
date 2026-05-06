@@ -3,7 +3,7 @@
 
 | 이미지 태그 (Image Tag) | TensorFlow 버전 | CUDA / cuDNN | 베이스 OS (Base OS) | 주요 변경사항 및 설명 |
 | :--- | :--- | :--- | :--- | :--- |
-| `dguailab/decs:latest`<br>`dguailab/decs:260506` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | **(최신)** 컨테이너 생성 시 `USER_PW` 환경변수로 사용자 초기 비밀번호를 주입할 수 있도록 하고, 값이 없으면 기존 기본 비밀번호를 사용하도록 fallback 추가 |
+| `dguailab/decs:latest`<br>`dguailab/decs:260506` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | **(최신)** `USER_PW` 환경변수로 사용자 초기 비밀번호 주입 지원, VNC 비밀번호를 `/home/$USER_ID/vnc_password.txt`에 저장, noVNC 루트 URL(`http://서버주소:VNC포트`) 접속 지원 |
 | `dguailab/decs:260501` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | Xfce + TigerVNC + noVNC 기반 브라우저 GUI 접속 지원 추가 |
 | `dguailab/decs:260427` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | 기존 사용자 컨테이너 변경 시 `~/.bashrc`의 conda initialize 블록 갱신, 경고 주석 영문화 및 인덴트 수정 |
 | `dguailab/decs:260403` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | 계정/권한 검증 강화, config-server 주입 기반 sudo 권한 축소, Jupyter 및 컨테이너 유지 프로세스 비-root 실행, gosu 추가 |
@@ -42,7 +42,7 @@ docker pull dguailab/decs:250926
 
 - 컨테이너 내부 noVNC 포트: `6080`
 - 컨테이너 내부 VNC 포트: `localhost:5901` 전용
-- 접속 URL: `http://서버주소:외부포트/vnc.html`
+- 접속 URL: `http://서버주소:VNC포트` 또는 `http://서버주소:VNC포트/vnc.html`
 - VNC 비밀번호 저장 위치: `/home/$USER_ID/vnc_password.txt`
 
 직접 `docker run`을 사용할 때는 다음처럼 환경변수와 포트를 함께 지정합니다.
@@ -51,7 +51,7 @@ docker pull dguailab/decs:250926
 -e ENABLE_VNC=true -p 외부포트:6080
 ```
 
-운영 스크립트(`~/uid`)에서는 `--enable_vnc true`를 주면 컨테이너 내부 `6080` 포트를 자동으로 추가하고, Docker 실행 환경변수에 `ENABLE_VNC=true`를 함께 전달합니다. FARM2 예시는 외부 포트 범위 `9100~9199` 중 하나가 `6080`에 연결되는 방식입니다.
+운영 스크립트(`~/uid`)에서는 `--enable_vnc true`를 주면 컨테이너 내부 `6080` 포트를 VNC 포트로 별도 할당하고, Docker 실행 환경변수에 `ENABLE_VNC=true`를 함께 전달합니다. 이 포트는 사용자가 요청한 추가 포트가 아니라 SSH, Jupyter와 같은 기본 접속 포트로 안내됩니다.
 
 ```
 --enable_vnc true

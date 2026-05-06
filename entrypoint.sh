@@ -80,6 +80,10 @@ EOF
     fi
     echo "TigerVNC listening on localhost:$vnc_port"
 
+    if [[ -d /usr/share/novnc && -f /usr/share/novnc/vnc.html ]]; then
+        ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+    fi
+
     pkill -f "websockify.*$novnc_port" >/dev/null 2>&1 || true
     echo "trying noVNC on 0.0.0.0:$novnc_port..."
     nohup websockify --web=/usr/share/novnc "0.0.0.0:$novnc_port" "localhost:$vnc_port" >/tmp/novnc.log 2>&1 &
