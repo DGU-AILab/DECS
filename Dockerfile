@@ -1,97 +1,114 @@
-# 이 파일은 decs:251002 이미지의 Dockerfile 입니다.
-############################# version history #############################
+# DECS CUDA/TensorFlow image template.
+# Build variants are defined in image-variants.json and passed as build args.
 
-##### decs:251002#####
-# 변경한 사람: 이소은
-# tensorflow version 2.13.0-gpu -> 2.18.0-gpu
+ARG BASE_IMAGE=nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04
+FROM ${BASE_IMAGE}
 
-##### decs:260501#####
-# 변경한 사람: 임준영
-# Xfce, TigerVNC, noVNC 기반 GUI 접속 지원 추가
+ARG BASE_IMAGE
+ARG DECS_IMAGE_VARIANT=cuda12.5-tf2.20-ubuntu22.04
+ARG CUDA_VERSION=12.5
+ARG TENSORFLOW_VERSION=2.20.0
+ARG TENSORFLOW_PACKAGE=tensorflow==2.20.0
+ARG PYTHON_VERSION=3.10
+ARG UBUNTU_VERSION=22.04
+ARG MIN_NVIDIA_DRIVER=555.42.06
+ARG MINIFORGE_VERSION=25.3.1-0
 
-########################### version history end ##########################
+LABEL org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      ai.dgu.decs.variant="${DECS_IMAGE_VARIANT}" \
+      ai.dgu.decs.cuda="${CUDA_VERSION}" \
+      ai.dgu.decs.tensorflow="${TENSORFLOW_VERSION}" \
+      ai.dgu.decs.python="${PYTHON_VERSION}" \
+      ai.dgu.decs.ubuntu="${UBUNTU_VERSION}" \
+      ai.dgu.decs.min_nvidia_driver="${MIN_NVIDIA_DRIVER}"
 
-# TensorFlow 2.18.0 GPU 공식 이미지 사용 (CUDA 12.3, cuDNN 8.9 포함, Ubuntu 22.04 기반)
-# https://hub.docker.com/layers/tensorflow/tensorflow/2.18.0-gpu/images/sha256-b076938b81335b8098a58a9e701ea183a652f146419f8601550c000f576e3cc4
-FROM tensorflow/tensorflow:2.18.0-gpu
+ENV DEBIAN_FRONTEND=noninteractive \
+    CONDA_DIR=/opt/conda \
+    DECS_IMAGE_VARIANT="${DECS_IMAGE_VARIANT}" \
+    DECS_CUDA_VERSION="${CUDA_VERSION}" \
+    DECS_TENSORFLOW_VERSION="${TENSORFLOW_VERSION}" \
+    DECS_PYTHON_VERSION="${PYTHON_VERSION}" \
+    DECS_MIN_NVIDIA_DRIVER="${MIN_NVIDIA_DRIVER}" \
+    SUDOER_ID=svmanager \
+    SUDOER_PW=decs2260 \
+    SUDOER_DIR=/svmanager \
+    SSHD_CONFIG_PATH=/etc/ssh/sshd_config
 
-# 설치 시 geographic area 를 물어보지 않도록 설정(apt install 시 interrupted 됨)
-ENV DEBIAN_FRONTEND noninteractive
-
-ENV SUDOER_ID svmanager
-ENV SUDOER_PW decs2260
-ENV SUDOER_DIR /$SUDOER_ID
-ENV SSHD_CONFIG_PATH /etc/ssh/sshd_config
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get clean \
-&& apt-get -y update \
-&& apt install -y \
-sudo \
-net-tools \
-fcitx-hangul \
-fonts-nanum* \
-vim \
-wget \
-curl \
-ssh \
-dbus-x11 \
-xfce4 \
-xfce4-terminal \
-tigervnc-standalone-server \
-tigervnc-common \
-novnc \
-websockify \
-software-properties-common
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        auditd \
+        ca-certificates \
+        curl \
+        dbus-x11 \
+        fcitx-hangul \
+        fonts-nanum \
+        fonts-nanum-coding \
+        fonts-nanum-extra \
+        gnupg \
+        net-tools \
+        novnc \
+        openssh-server \
+        software-properties-common \
+        sudo \
+        tigervnc-common \
+        tigervnc-standalone-server \
+        update-motd \
+        vim \
+        websockify \
+        wget \
+        xfce4 \
+        xfce4-terminal \
+    && rm -rf /var/lib/apt/lists/*
 
-# motd install
-RUN apt-get update && apt-get install -y update-motd
-
-
-# 관리자 계정의 home directory 로 쓸 폴더 추가(home은 nfs이므로, 다른 곳에 생성)
-RUN mkdir "$SUDOER_DIR"
-# 관리자 계정을 추가, home directory 를 위에서 생성한 폴더로 설정
-RUN useradd -s /bin/bash -d /$SUDOER_ID -G sudo $SUDOER_ID \
-    && echo "$SUDOER_ID ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-# skel 을 복사 (로그인 시 tf-docker 로 뜨지 않게 하는 목적)
-RUN cp -R /etc/skel/. "$SUDOER_DIR"
-
-RUN echo $SUDOER_ID:$SUDOER_PW | chpasswd
-
-
-# decs dir 을 생성
-RUN mkdir /home/decs
+RUN mkdir -p "$SUDOER_DIR" /home/decs /run/sshd \
+    && useradd -s /bin/bash -d "$SUDOER_DIR" -G sudo "$SUDOER_ID" \
+    && echo "$SUDOER_ID ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
+    && cp -R /etc/skel/. "$SUDOER_DIR" \
+    && echo "$SUDOER_ID:$SUDOER_PW" | chpasswd
 
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
-    && apt-get update && apt-get install -y google-chrome-stable
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN printf "LANG=\"ko_KR.UTF-8\"\nLANG=\"ko_KR.EUC-KR\"\nLANGUAGE=\"ko_KR:ko:en_GB:en\"\n" >> /etc/environment \
-&& fc-cache -r
+RUN printf 'LANG="ko_KR.UTF-8"\nLANGUAGE="ko_KR:ko:en_GB:en"\n' >> /etc/environment \
+    && fc-cache -r
 
-RUN cat /etc/environment
+RUN wget -q "https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/Miniforge3-Linux-x86_64.sh" \
+    && bash Miniforge3-Linux-x86_64.sh -b -p "$CONDA_DIR" \
+    && rm Miniforge3-Linux-x86_64.sh
 
-# 최신 Anaconda 버전 다운로드 및 설치
-RUN wget https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh \
-    && bash Anaconda3-2024.10-1-Linux-x86_64.sh -b -p /opt/anaconda3 \
-    && rm Anaconda3-2024.10-1-Linux-x86_64.sh
+ENV PATH=/opt/conda/bin:$PATH
 
-ENV PATH /opt/anaconda3/bin:$PATH
-RUN echo "export PATH="/opt/anaconda3/bin:$PATH"" >> /etc/profile \
-    && /opt/anaconda3/bin/conda init
+RUN conda config --system --set channel_priority strict \
+    && conda config --system --add channels conda-forge \
+    && conda install -n base -y \
+        "python=${PYTHON_VERSION}" \
+        ipywidgets \
+        jupyterlab \
+        micromamba \
+        notebook \
+        pip \
+    && python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir "${TENSORFLOW_PACKAGE}" \
+    && conda clean -afy \
+    && conda init bash
 
-# jupyterlab 설치
-RUN /opt/anaconda3/bin/conda install -y jupyterlab
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tigervnc-tools \
+    && rm -rf /var/lib/apt/lists/*
 
-# jupyterlab 설정파일 생성
-RUN mkdir /jupyter_config \
-    && /opt/anaconda3/bin/jupyter lab --generate-config --config=/jupyter_config/jupyter_notebook_config.py
+RUN mkdir -p /jupyter_config \
+    && touch /jupyter_config/jupyter_notebook_config.py
 
-# entrypoint.sh 복사
 COPY entrypoint.sh /
 
-# noVNC 접속 포트. VNC 서버(5901)는 localhost에만 바인딩합니다.
+# noVNC listens on 6080. The TigerVNC server binds to localhost only.
 EXPOSE 6080
 
-# SSHD 서버를 실행하고, entrypoint 파일을 start/restart 시 마다 실행, dev/null에 entrypoint 로그를 저장
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["bash", "/entrypoint.sh"]

@@ -3,12 +3,59 @@ name: CI/CD - Docker Image from DECS Branch
 on:
   pull_request:
     types: [closed]
-    branches: [ "develop" ]
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      date_tag:
+        description: "YYMMDD release tag. Defaults to image-variants.json."
+        required: false
+        type: string
 
 jobs:
-  build-and-push:
-    if: github.event.pull_request.merged == true
+  prepare:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.generate_tag.outputs.TAG_NAME }}
+      matrix: ${{ steps.generate_matrix.outputs.matrix }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate release tag
+        id: generate_tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.date_tag }}" ]]; then
+            TAG_VERSION="${{ inputs.date_tag }}"
+          elif [[ -n "${{ github.event.pull_request.head.ref }}" ]]; then
+            BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+            TAG_VERSION="${BRANCH_NAME#decs}"
+          else
+            TAG_VERSION="$(python3 -c 'import json; print(json.load(open("image-variants.json", encoding="utf-8"))["default_date_tag"])')"
+          fi
+
+          if ! [[ "$TAG_VERSION" =~ ^[0-9]{6}$ ]]; then
+            echo "Release tag must be YYMMDD, got: $TAG_VERSION" >&2
+            exit 1
+          fi
+
+          echo "TAG_NAME=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Generate build matrix
+        id: generate_matrix
+        run: |
+          python3 scripts/variant_matrix.py \
+            --date-tag "${{ steps.generate_tag.outputs.TAG_NAME }}" \
+            --repository dguailab/decs \
+            --github-output
+
+  build-and-push:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
 
     steps:
       - name: Checkout repository
@@ -20,19 +67,19 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Generate tag from branch name
-        id: generate_tag
-        run: |
-          BRANCH_NAME=${{ github.event.pull_request.head.ref }}
-          TAG_VERSION=${BRANCH_NAME#decs}
-          echo "Extracted tag version: $TAG_VERSION"
-          echo "TAG_NAME=$TAG_VERSION" >> $GITHUB_OUTPUT
-
-      - name: Build and push Docker image
+      - name: Build and push ${{ matrix.id }}
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile
           push: true
-          tags: |
-            dguailab/decs:${{ steps.generate_tag.outputs.TAG_NAME }}
-            dguailab/decs:latest
+          build-args: |
+            BASE_IMAGE=${{ matrix.base_image }}
+            DECS_IMAGE_VARIANT=${{ matrix.id }}
+            CUDA_VERSION=${{ matrix.cuda_version }}
+            TENSORFLOW_VERSION=${{ matrix.tensorflow_version }}
+            TENSORFLOW_PACKAGE=${{ matrix.tensorflow_package }}
+            PYTHON_VERSION=${{ matrix.python_version }}
+            UBUNTU_VERSION=${{ matrix.ubuntu_version }}
+            MIN_NVIDIA_DRIVER=${{ matrix.min_nvidia_driver }}
+          tags: ${{ matrix.docker_tags }}
