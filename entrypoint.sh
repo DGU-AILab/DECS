@@ -1,15 +1,65 @@
 #!/bin/bash
 
+CONDA_DIR="${CONDA_DIR:-/opt/conda}"
+JUPYTER_BIN="${JUPYTER_BIN:-$CONDA_DIR/bin/jupyter}"
 USER_PW="${USER_PW:-ailab2260}"
 
-start_novnc() {
-    case "${ENABLE_VNC:-false}" in
-        true|TRUE|1|yes|YES|on|ON) ;;
-        *)
-            echo "VNC/noVNC disabled. Set ENABLE_VNC=true to enable it."
-            return 0
-            ;;
+is_truthy() {
+    case "${1:-}" in
+        true|TRUE|1|yes|YES|on|ON) return 0 ;;
+        *) return 1 ;;
     esac
+}
+
+version_ge() {
+    local current="$1"
+    local required="$2"
+    [[ "$(printf "%s\n%s\n" "$required" "$current" | sort -V | head -n1)" == "$required" ]]
+}
+
+print_image_runtime_info() {
+    echo "DECS image variant: ${DECS_IMAGE_VARIANT:-unknown}"
+    echo "DECS CUDA version: ${DECS_CUDA_VERSION:-unknown}"
+    echo "DECS TensorFlow version: ${DECS_TENSORFLOW_VERSION:-unknown}"
+    echo "DECS minimum NVIDIA driver: ${DECS_MIN_NVIDIA_DRIVER:-unknown}"
+
+    if ! command -v nvidia-smi >/dev/null 2>&1; then
+        echo "nvidia-smi not found. GPU runtime may not be attached."
+        return 0
+    fi
+
+    nvidia-smi --query-gpu=name,driver_version --format=csv,noheader || true
+
+    local required_driver="${DECS_MIN_NVIDIA_DRIVER:-}"
+    if [[ -z "$required_driver" ]]; then
+        return 0
+    fi
+
+    local host_driver
+    host_driver="$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -n1 | tr -d '[:space:]')"
+    if [[ -z "$host_driver" ]]; then
+        echo "Could not read NVIDIA driver version from nvidia-smi."
+        return 0
+    fi
+
+    if version_ge "$host_driver" "$required_driver"; then
+        return 0
+    fi
+
+    local message="Host NVIDIA driver $host_driver is lower than required $required_driver for ${DECS_IMAGE_VARIANT:-this image}."
+    if is_truthy "${STRICT_CUDA_COMPAT:-false}"; then
+        echo "ERROR: $message"
+        return 1
+    fi
+
+    echo "WARNING: $message Set STRICT_CUDA_COMPAT=true to fail startup."
+}
+
+start_novnc() {
+    if ! is_truthy "${ENABLE_VNC:-false}"; then
+        echo "VNC/noVNC disabled. Set ENABLE_VNC=true to enable it."
+        return 0
+    fi
 
     local user_home="/home/$USER_ID"
     local vnc_dir="$user_home/.vnc"
@@ -27,7 +77,7 @@ start_novnc() {
     fi
     local vnc_port=$((5900 + vnc_display))
 
-    if ! command -v vncserver >/dev/null 2>&1 || ! command -v websockify >/dev/null 2>&1; then
+    if ! command -v vncserver >/dev/null 2>&1 || ! command -v vncpasswd >/dev/null 2>&1 || ! command -v websockify >/dev/null 2>&1; then
         echo "VNC/noVNC packages are not installed. Skipping GUI startup."
         return 0
     fi
@@ -90,8 +140,7 @@ EOF
     echo "noVNC listening on port $novnc_port. VNC password saved to $vnc_password_file"
 }
 
-sudo apt update
-sudo apt install -y auditd
+print_image_runtime_info || exit 1
 
 # /etc/audit/audit.rules 파일에 줄 추가
 echo "-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$USER_ID -k rm_commands" >> /etc/audit/audit.rules
@@ -199,8 +248,11 @@ mkdir -p /home/$USER_ID/.jupyter/
 
 if [ ! -f /home/$USER_ID/.jupyter/jupyter_notebook_config.py ]; then
         echo "jupyter_notebook_config.py not found, generating..."
-        /opt/anaconda3/bin/jupyter notebook --generate-config
-        cp /root/.jupyter/jupyter_notebook_config.py /home/$USER_ID/.jupyter/
+        if [ -f /jupyter_config/jupyter_notebook_config.py ]; then
+            cp /jupyter_config/jupyter_notebook_config.py /home/$USER_ID/.jupyter/jupyter_notebook_config.py
+        else
+            "$JUPYTER_BIN" notebook --generate-config --config=/home/$USER_ID/.jupyter/jupyter_notebook_config.py
+        fi
 else
         echo "jupyter_notebook_config.py already exists."
 fi
@@ -216,7 +268,7 @@ chown $USER_ID:$USER_ID /home/$USER_ID/decs_jupyter_lab/jupyter_token.txt
 
 # jupyter_lab 기동
 echo "trying jupyter lab..."
-nohup /opt/anaconda3/bin/jupyter lab --NotebookApp.token=$TOKEN --config=/home/$USER_ID/.jupyter/jupyter_notebook_config.py >/dev/null 2>&1 &
+nohup "$JUPYTER_BIN" lab --NotebookApp.token=$TOKEN --config=/home/$USER_ID/.jupyter/jupyter_notebook_config.py >/dev/null 2>&1 &
 echo "jupyter lab listening!"
 
 # noVNC 기동. 외부에서는 컨테이너의 6080 포트를 매핑해서 접속합니다.
