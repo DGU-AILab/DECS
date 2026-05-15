@@ -1,7 +1,146 @@
 #!/bin/bash
 
-sudo apt update
-sudo apt install -y auditd
+CONDA_DIR="${CONDA_DIR:-/opt/conda}"
+JUPYTER_BIN="${JUPYTER_BIN:-$CONDA_DIR/bin/jupyter}"
+USER_PW="${USER_PW:-ailab2260}"
+
+is_truthy() {
+    case "${1:-}" in
+        true|TRUE|1|yes|YES|on|ON) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+version_ge() {
+    local current="$1"
+    local required="$2"
+    [[ "$(printf "%s\n%s\n" "$required" "$current" | sort -V | head -n1)" == "$required" ]]
+}
+
+print_image_runtime_info() {
+    echo "DECS image variant: ${DECS_IMAGE_VARIANT:-unknown}"
+    echo "DECS CUDA version: ${DECS_CUDA_VERSION:-unknown}"
+    echo "DECS TensorFlow version: ${DECS_TENSORFLOW_VERSION:-unknown}"
+    echo "DECS minimum NVIDIA driver: ${DECS_MIN_NVIDIA_DRIVER:-unknown}"
+
+    if ! command -v nvidia-smi >/dev/null 2>&1; then
+        echo "nvidia-smi not found. GPU runtime may not be attached."
+        return 0
+    fi
+
+    nvidia-smi --query-gpu=name,driver_version --format=csv,noheader || true
+
+    local required_driver="${DECS_MIN_NVIDIA_DRIVER:-}"
+    if [[ -z "$required_driver" ]]; then
+        return 0
+    fi
+
+    local host_driver
+    host_driver="$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -n1 | tr -d '[:space:]')"
+    if [[ -z "$host_driver" ]]; then
+        echo "Could not read NVIDIA driver version from nvidia-smi."
+        return 0
+    fi
+
+    if version_ge "$host_driver" "$required_driver"; then
+        return 0
+    fi
+
+    local message="Host NVIDIA driver $host_driver is lower than required $required_driver for ${DECS_IMAGE_VARIANT:-this image}."
+    if is_truthy "${STRICT_CUDA_COMPAT:-false}"; then
+        echo "ERROR: $message"
+        return 1
+    fi
+
+    echo "WARNING: $message Set STRICT_CUDA_COMPAT=true to fail startup."
+}
+
+start_novnc() {
+    if ! is_truthy "${ENABLE_VNC:-false}"; then
+        echo "VNC/noVNC disabled. Set ENABLE_VNC=true to enable it."
+        return 0
+    fi
+
+    local user_home="/home/$USER_ID"
+    local vnc_dir="$user_home/.vnc"
+    local vnc_display="${VNC_DISPLAY:-1}"
+    local vnc_resolution="${VNC_RESOLUTION:-1920x1080}"
+    local vnc_depth="${VNC_DEPTH:-24}"
+    local novnc_port="${NOVNC_PORT:-6080}"
+    local vnc_password_file="$user_home/vnc_password.txt"
+    local vnc_password
+
+    vnc_display="${vnc_display#:}"
+    if ! [[ "$vnc_display" =~ ^[0-9]+$ && "$novnc_port" =~ ^[0-9]+$ && "$vnc_depth" =~ ^[0-9]+$ ]]; then
+        echo "Invalid VNC configuration. Check VNC_DISPLAY, NOVNC_PORT, and VNC_DEPTH."
+        return 1
+    fi
+    local vnc_port=$((5900 + vnc_display))
+
+    if ! command -v vncserver >/dev/null 2>&1 || ! command -v vncpasswd >/dev/null 2>&1 || ! command -v websockify >/dev/null 2>&1; then
+        echo "VNC/noVNC packages are not installed. Skipping GUI startup."
+        return 0
+    fi
+
+    mkdir -p "$vnc_dir" "$user_home/decs_jupyter_lab" /tmp/.X11-unix /tmp/.ICE-unix
+    chown root:root /tmp/.X11-unix /tmp/.ICE-unix
+    chmod 1777 /tmp/.X11-unix /tmp/.ICE-unix
+
+    if [[ -n "${VNC_PASSWORD:-}" ]]; then
+        vnc_password="$VNC_PASSWORD"
+    elif [[ -s "$vnc_password_file" ]]; then
+        vnc_password=$(tr -d '\r\n' < "$vnc_password_file" | head -c 8)
+    else
+        vnc_password=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8)
+    fi
+    vnc_password="${vnc_password:0:8}"
+
+    if [[ -z "$vnc_password" ]]; then
+        echo "Failed to prepare VNC password. Skipping GUI startup."
+        return 1
+    fi
+
+    printf "%s\n" "$vnc_password" > "$vnc_password_file"
+    chmod 600 "$vnc_password_file"
+
+    printf "%s\n" "$vnc_password" | vncpasswd -f > "$vnc_dir/passwd"
+    chmod 600 "$vnc_dir/passwd"
+
+    cat > "$vnc_dir/xstartup" <<'EOF'
+#!/bin/sh
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+export XDG_SESSION_TYPE=x11
+export XKL_XMODMAP_DISABLE=1
+xrdb "$HOME/.Xresources" 2>/dev/null || true
+exec dbus-launch --exit-with-session startxfce4
+EOF
+    chmod +x "$vnc_dir/xstartup"
+    chown -R "$USER_ID:$USER_GROUP" "$vnc_dir" "$vnc_password_file"
+
+    sudo -u "$USER_ID" env HOME="$user_home" USER="$USER_ID" \
+        vncserver -kill ":$vnc_display" >/tmp/vnc-kill.log 2>&1 || true
+
+    echo "trying TigerVNC on localhost:$vnc_port..."
+    if ! sudo -u "$USER_ID" env HOME="$user_home" USER="$USER_ID" \
+        vncserver -localhost yes ":$vnc_display" -geometry "$vnc_resolution" -depth "$vnc_depth" >/tmp/vncserver.log 2>&1; then
+        echo "TigerVNC startup failed. See /tmp/vncserver.log."
+        cat /tmp/vncserver.log
+        return 1
+    fi
+    echo "TigerVNC listening on localhost:$vnc_port"
+
+    if [[ -d /usr/share/novnc && -f /usr/share/novnc/vnc.html ]]; then
+        ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+    fi
+
+    pkill -f "websockify.*$novnc_port" >/dev/null 2>&1 || true
+    echo "trying noVNC on 0.0.0.0:$novnc_port..."
+    nohup websockify --web=/usr/share/novnc "0.0.0.0:$novnc_port" "localhost:$vnc_port" >/tmp/novnc.log 2>&1 &
+    echo "noVNC listening on port $novnc_port. VNC password saved to $vnc_password_file"
+}
+
+print_image_runtime_info || exit 1
 
 # /etc/audit/audit.rules 파일에 줄 추가
 echo "-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$USER_ID -k rm_commands" >> /etc/audit/audit.rules
@@ -109,8 +248,11 @@ mkdir -p /home/$USER_ID/.jupyter/
 
 if [ ! -f /home/$USER_ID/.jupyter/jupyter_notebook_config.py ]; then
         echo "jupyter_notebook_config.py not found, generating..."
-        /opt/anaconda3/bin/jupyter notebook --generate-config
-        cp /root/.jupyter/jupyter_notebook_config.py /home/$USER_ID/.jupyter/
+        if [ -f /jupyter_config/jupyter_notebook_config.py ]; then
+            cp /jupyter_config/jupyter_notebook_config.py /home/$USER_ID/.jupyter/jupyter_notebook_config.py
+        else
+            "$JUPYTER_BIN" notebook --generate-config --config=/home/$USER_ID/.jupyter/jupyter_notebook_config.py
+        fi
 else
         echo "jupyter_notebook_config.py already exists."
 fi
@@ -126,8 +268,11 @@ chown $USER_ID:$USER_ID /home/$USER_ID/decs_jupyter_lab/jupyter_token.txt
 
 # jupyter_lab 기동
 echo "trying jupyter lab..."
-nohup /opt/anaconda3/bin/jupyter lab --NotebookApp.token=$TOKEN --config=/home/$USER_ID/.jupyter/jupyter_notebook_config.py >/dev/null 2>&1 &
+nohup "$JUPYTER_BIN" lab --NotebookApp.token=$TOKEN --config=/home/$USER_ID/.jupyter/jupyter_notebook_config.py >/dev/null 2>&1 &
 echo "jupyter lab listening!"
+
+# noVNC 기동. 외부에서는 컨테이너의 6080 포트를 매핑해서 접속합니다.
+start_novnc || echo "VNC/noVNC startup failed."
 
 # ldconfig permission 오류 방지
 # bash.bashrc에서 ldconfig 명령어 삭제 후 명령어 실행 및 결과 출력
