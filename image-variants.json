@@ -1,0 +1,70 @@
+{
+  "repository": "dguailab/decs",
+  "default_date_tag": "260515",
+  "notes": [
+    "TensorFlow 2.20.0 is officially built against CUDA 12.5 and cuDNN 9.3.",
+    "The CUDA 12.8 variant is provided as experimental until LAB10/H200 smoke tests pass."
+  ],
+  "variants": [
+    {
+      "id": "cuda11.8-tf2.13-ubuntu22.04",
+      "base_image": "nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04",
+      "cuda_version": "11.8",
+      "tensorflow_version": "2.13.0",
+      "tensorflow_package": "tensorflow==2.13.0",
+      "python_version": "3.10",
+      "ubuntu_version": "22.04",
+      "min_nvidia_driver": "520.61.05",
+      "support": "stable",
+      "aliases": [
+        "cuda11.8-tf2.13",
+        "legacy"
+      ]
+    },
+    {
+      "id": "cuda12.2-tf2.15-ubuntu22.04",
+      "base_image": "nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04",
+      "cuda_version": "12.2",
+      "tensorflow_version": "2.15.0",
+      "tensorflow_package": "tensorflow==2.15.0",
+      "python_version": "3.10",
+      "ubuntu_version": "22.04",
+      "min_nvidia_driver": "535.104.05",
+      "support": "stable",
+      "aliases": [
+        "cuda12.2-tf2.15"
+      ]
+    },
+    {
+      "id": "cuda12.5-tf2.20-ubuntu22.04",
+      "base_image": "nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04",
+      "cuda_version": "12.5",
+      "tensorflow_version": "2.20.0",
+      "tensorflow_package": "tensorflow==2.20.0",
+      "python_version": "3.10",
+      "ubuntu_version": "22.04",
+      "min_nvidia_driver": "555.42.06",
+      "support": "stable",
+      "aliases": [
+        "cuda12.5-tf2.20",
+        "stable",
+        "latest"
+      ]
+    },
+    {
+      "id": "cuda12.8-tf2.20-ubuntu22.04",
+      "base_image": "nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04",
+      "cuda_version": "12.8",
+      "tensorflow_version": "2.20.0",
+      "tensorflow_package": "tensorflow==2.20.0",
+      "python_version": "3.10",
+      "ubuntu_version": "22.04",
+      "min_nvidia_driver": "570.124.06",
+      "support": "experimental",
+      "aliases": [
+        "cuda12.8-tf2.20",
+        "h200-experimental"
+      ]
+    }
+  ]
+}

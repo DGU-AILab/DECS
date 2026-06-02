@@ -1,42 +1,149 @@
-## 🗒️ 이미지 버전 요약
-각 이미지 태그는 생성된 날짜(YYMMDD)를 따르며, latest 태그는 항상 최신 버전의 이미지를 가리킵니다.
+## DECS Docker Images
 
-| 이미지 태그 (Image Tag) | TensorFlow 버전 | CUDA / cuDNN | 베이스 OS (Base OS) | 주요 변경사항 및 설명 |
-| :--- | :--- | :--- | :--- | :--- |
-| `dguailab/decs:latest`<br>`dguailab/decs:260201` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | **(최신)** 의도되지 않은 MOTD 출력 방지 버그 수정 |
-| `dguailab/decs:251023` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | **(이전 안정 버전)** Jupyter Notebook 버전 변경으로 인한 오류 해결 버전 |
-| `dguailab/decs:251002` | **2.18.0** | CUDA 12.5<br>cuDNN 8.9 | Ubuntu 22.04 | TensorFlow 2.18.0 업그레이드, 최신 GPU 환경 지원 |
-| `dguailab/decs:250926` | **2.13.0** | CUDA 11.8<br>cuDNN 8.6 | Ubuntu 20.04 | **(이전 안정 버전)** TensorFlow 2.13.0 기반의 안정화 버전 |
+DECS 이미지는 GPU/driver 호환성을 관리하기 위해 CUDA variant별로 빌드한다. 공통 Dockerfile은 하나만 유지하고, 실제 CUDA/TensorFlow 조합은 `image-variants.json`에서 관리한다.
 
-## ⚙️ 사용 방법
-필요한 버전의 이미지를 Docker Hub에서 pull 받아 사용합니다.
+## Image Variants
 
-### 최신 버전 사용하기
-latest 태그를 사용하여 항상 최신 버전의 이미지를 받을 수 있습니다.
+
+| Variant tag                          | CUDA | TensorFlow | Base image                                    | 최소 NVIDIA driver | 상태           |
+| ------------------------------------ | ---- | ---------- | --------------------------------------------- | ---------------- | ------------ |
+| `cuda11.8-tf2.13-ubuntu22.04-260602` | 11.8 | 2.13.0     | `nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04` | 520.61.05        | stable       |
+| `cuda12.2-tf2.15-ubuntu22.04-260602` | 12.2 | 2.15.0     | `nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04` | 535.104.05       | stable       |
+| `cuda12.5-tf2.20-ubuntu22.04-260602` | 12.5 | 2.20.0     | `nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04`  | 555.42.06        | stable       |
+| `cuda12.8-tf2.20-ubuntu22.04-260602` | 12.8 | 2.20.0     | `nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04`  | 570.124.06       | experimental |
+
+
+Alias tags:
+
+
+| Alias                                  | Target                      |
+| -------------------------------------- | --------------------------- |
+| `latest`, `stable`, `cuda12.5-tf2.20`  | CUDA 12.5 / TensorFlow 2.20 |
+| `legacy`, `cuda11.8-tf2.13`            | CUDA 11.8 / TensorFlow 2.13 |
+| `cuda12.2-tf2.15`                      | CUDA 12.2 / TensorFlow 2.15 |
+| `cuda12.8-tf2.20`, `h200-experimental` | CUDA 12.8 / TensorFlow 2.20 |
+
+
+TensorFlow 공식 빌드 구성 기준으로 TensorFlow 2.20.0은 CUDA 12.5/cuDNN 9.3 조합이다. CUDA 12.8 이미지는 H200/LAB10 검증 전까지 experimental로 둔다.
+
+## Included Runtime
+
+모든 variant는 다음을 포함한다.
+
+- CUDA/cuDNN base image
+- TensorFlow
+- system packages: SSH, sudo, auditd, Korean fonts/input, Chrome, Xfce, TigerVNC, noVNC
+- Miniforge under `/opt/conda`
+- micromamba
+- JupyterLab / Notebook / ipywidgets
+
+`entrypoint.sh`는 시작 시 이미지 variant, CUDA/TensorFlow 버전, 요구 driver 버전, 실제 `nvidia-smi` 정보를 출력한다. `STRICT_CUDA_COMPAT=true`를 주면 host driver가 variant의 최소 driver보다 낮을 때 시작을 실패시킨다.
+
+## Build
+
+전체 variant dry-run:
+
+```bash
+python3 scripts/build_variants.py --dry-run
 ```
-docker pull dguailab/decs:latest
+
+특정 variant build:
+
+```bash
+python3 scripts/build_variants.py --variant cuda12.5-tf2.20-ubuntu22.04
 ```
 
-### 날짜 태그를 직접 명시하여 받기
-```
-docker pull dguailab/decs:251002
-```
+push까지 수행:
 
-### 특정 구버전 사용하기
-이전 버전의 TensorFlow 환경이 필요한 경우, 해당 날짜 태그를 명시하여 이미지를 받습니다.
-```
-docker pull dguailab/decs:250926
+```bash
+python3 scripts/build_variants.py --variant cuda12.5-tf2.20-ubuntu22.04 --push
 ```
 
+GitHub Actions는 `main` 대상 PR이 merge되거나 `workflow_dispatch`로 실행될 때 `image-variants.json`을 읽어 matrix build/push를 수행한다.
 
-# ⚒️ 빌드 자동화
-이 Docker 이미지는 GitHub Actions를 통해 자동으로 빌드 및 배포됩니다.
-- 실행 조건: decsYYMMDD 형식의 브랜치가 develop 브랜치로 병합(merge)될 때
-- 자동 생성 태그:
-- 브랜치 이름에서 추출한 날짜 태그 (예: `dguailab/decs:251002`)
-- 최신 버전을 가리키는 latest 태그 (`dguailab/decs:latest`)
+## Usage
+
+운영 스크립트(`~/uid/script/create_container.sh`)에서는 이미지 이름과 버전을 분리해서 전달한다.
+
+```bash
+bash ~/uid/script/create_container.sh \
+  --image decs \
+  --version cuda12.5-tf2.20-ubuntu22.04-260515
+```
+
+noVNC는 기존처럼 opt-in이다.
+
+```bash
+--enable-vnc true
+```
+
+관련 환경변수:
 
 
-<br><br><br>
-### 🔗 관리자용 노션 문서 링크
-https://www.notion.so/DECS-280c7692a263802ca40ff68b38f58dd1?source=copy_link
+| 환경변수                 | 기본값         | 설명                                                |
+| -------------------- | ----------- | ------------------------------------------------- |
+| `ENABLE_VNC`         | `false`     | `true`이면 TigerVNC/noVNC를 시작한다.                    |
+| `VNC_PASSWORD`       | 랜덤 8자리      | 지정하지 않으면 `/home/$USER_ID/vnc_password.txt`에 저장한다. |
+| `VNC_RESOLUTION`     | `1920x1080` | VNC 화면 해상도                                        |
+| `VNC_DEPTH`          | `24`        | VNC 색상 깊이                                         |
+| `VNC_DISPLAY`        | `1`         | VNC display 번호. 기본 VNC 포트는 `5901`                 |
+| `NOVNC_PORT`         | `6080`      | noVNC listen 포트                                   |
+| `STRICT_CUDA_COMPAT` | `false`     | 최소 NVIDIA driver 미만이면 startup 실패                  |
+
+
+## Tests
+
+이 저장소 내부의 테스트 파일만 사용한다. 외부 `~/uid`와 ansible inventory는 호출 대상이다.
+
+로컬 이미지 smoke test:
+
+```bash
+python3 scripts/test_image_variants.py --variant cuda12.5-tf2.20-ubuntu22.04
+python3 scripts/test_image_variants.py --variant cuda12.5-tf2.20-ubuntu22.04 --gpu
+```
+
+`~/uid/script_test/create_container.sh` dry-run 연동 테스트:
+
+```bash
+python3 scripts/test_uid_create_container.py --variant cuda12.5-tf2.20-ubuntu22.04
+```
+
+LAB10 같은 실제 GPU host에서 ansible smoke test:
+
+```bash
+tar -czf /tmp/decs-build-context-260515.tgz Dockerfile entrypoint.sh .dockerignore
+
+ansible-playbook \
+  -i /home/jy/ansible/inventory.ini \
+  tests/ansible/decs_image_build.yml \
+  -e target_hosts=lab10 \
+  -e image_tag=cuda12.8-tf2.20-ubuntu22.04-260515 \
+  -e base_image=nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04 \
+  -e decs_image_variant=cuda12.8-tf2.20-ubuntu22.04 \
+  -e cuda_version=12.8 \
+  -e tensorflow_version=2.20.0 \
+  -e tensorflow_package=tensorflow==2.20.0 \
+  -e min_nvidia_driver=570.124.06
+
+ansible-playbook \
+  -i /home/jy/ansible/inventory.ini \
+  tests/ansible/decs_image_smoke.yml \
+  -e target_hosts=lab10 \
+  -e image_tag=cuda12.8-tf2.20-ubuntu22.04-260515
+```
+
+VNC까지 확인:
+
+```bash
+ansible-playbook \
+  -i /home/jy/ansible/inventory.ini \
+  tests/ansible/decs_image_smoke.yml \
+  -e target_hosts=lab10 \
+  -e image_tag=cuda12.5-tf2.20-ubuntu22.04-260515 \
+  -e enable_vnc=true
+```
+
+## Admin Notes
+
+관리자용 노션 문서:
+[https://www.notion.so/DECS-280c7692a263802ca40ff68b38f58dd1?source=copy_link](https://www.notion.so/DECS-280c7692a263802ca40ff68b38f58dd1?source=copy_link)
