@@ -13,6 +13,7 @@ ARG PYTHON_VERSION=3.10
 ARG UBUNTU_VERSION=22.04
 ARG MIN_NVIDIA_DRIVER=555.42.06
 ARG MINIFORGE_VERSION=25.3.1-0
+ARG CONDA_PACKAGES="ipywidgets jupyterlab micromamba notebook pip"
 
 LABEL org.opencontainers.image.base.name="${BASE_IMAGE}" \
       ai.dgu.decs.variant="${DECS_IMAGE_VARIANT}" \
@@ -87,13 +88,7 @@ ENV PATH=/opt/conda/bin:$PATH
 
 RUN conda config --system --set channel_priority strict \
     && conda config --system --add channels conda-forge \
-    && conda install -n base -y \
-        "python=${PYTHON_VERSION}" \
-        ipywidgets \
-        jupyterlab \
-        micromamba \
-        notebook \
-        pip \
+    && conda install -n base -y "python=${PYTHON_VERSION}" ${CONDA_PACKAGES} \
     && python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir "${TENSORFLOW_PACKAGE}" \
     && conda clean -afy \
