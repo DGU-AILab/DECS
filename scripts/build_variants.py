@@ -17,6 +17,7 @@ BUILD_ARG_KEYS = [
     ("PYTHON_VERSION", "python_version"),
     ("UBUNTU_VERSION", "ubuntu_version"),
     ("MIN_NVIDIA_DRIVER", "min_nvidia_driver"),
+    ("CONDA_PACKAGES", "conda_packages"),
 ]
 
 

@@ -15,6 +15,7 @@
     python_version: "3.10"
     ubuntu_version: "22.04"
     min_nvidia_driver: "555.42.06"
+    conda_packages: "ipywidgets jupyterlab micromamba notebook pip"
 
   tasks:
     - name: Recreate remote build directory
@@ -46,6 +47,7 @@
           --build-arg PYTHON_VERSION={{ python_version | quote }} \
           --build-arg UBUNTU_VERSION={{ ubuntu_version | quote }} \
           --build-arg MIN_NVIDIA_DRIVER={{ min_nvidia_driver | quote }} \
+          --build-arg CONDA_PACKAGES={{ conda_packages | quote }} \
           -t {{ image_repository }}:{{ image_tag }} \
           .
       args:

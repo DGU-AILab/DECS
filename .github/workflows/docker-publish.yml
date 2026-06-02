@@ -82,4 +82,5 @@ jobs:
             PYTHON_VERSION=${{ matrix.python_version }}
             UBUNTU_VERSION=${{ matrix.ubuntu_version }}
             MIN_NVIDIA_DRIVER=${{ matrix.min_nvidia_driver }}
+            CONDA_PACKAGES=${{ matrix.conda_packages }}
           tags: ${{ matrix.docker_tags }}
