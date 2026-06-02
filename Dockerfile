@@ -48,6 +48,7 @@ RUN apt-get clean \
         fonts-nanum-coding \
         fonts-nanum-extra \
         gnupg \
+        gosu \
         net-tools \
         novnc \
         openssh-server \

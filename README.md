@@ -4,21 +4,25 @@ DECS 이미지는 GPU/driver 호환성을 관리하기 위해 CUDA variant별로
 
 ## Image Variants
 
-| Variant tag | CUDA | TensorFlow | Base image | 최소 NVIDIA driver | 상태 |
-| --- | --- | --- | --- | --- | --- |
-| `cuda11.8-tf2.13-ubuntu22.04-260515` | 11.8 | 2.13.0 | `nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04` | 520.61.05 | stable |
-| `cuda12.2-tf2.15-ubuntu22.04-260515` | 12.2 | 2.15.0 | `nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04` | 535.104.05 | stable |
-| `cuda12.5-tf2.20-ubuntu22.04-260515` | 12.5 | 2.20.0 | `nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04` | 555.42.06 | stable |
-| `cuda12.8-tf2.20-ubuntu22.04-260515` | 12.8 | 2.20.0 | `nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04` | 570.124.06 | experimental |
+
+| Variant tag                          | CUDA | TensorFlow | Base image                                    | 최소 NVIDIA driver | 상태           |
+| ------------------------------------ | ---- | ---------- | --------------------------------------------- | ---------------- | ------------ |
+| `cuda11.8-tf2.13-ubuntu22.04-260602` | 11.8 | 2.13.0     | `nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04` | 520.61.05        | stable       |
+| `cuda12.2-tf2.15-ubuntu22.04-260602` | 12.2 | 2.15.0     | `nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04` | 535.104.05       | stable       |
+| `cuda12.5-tf2.20-ubuntu22.04-260602` | 12.5 | 2.20.0     | `nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04`  | 555.42.06        | stable       |
+| `cuda12.8-tf2.20-ubuntu22.04-260602` | 12.8 | 2.20.0     | `nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04`  | 570.124.06       | experimental |
+
 
 Alias tags:
 
-| Alias | Target |
-| --- | --- |
-| `latest`, `stable`, `cuda12.5-tf2.20` | CUDA 12.5 / TensorFlow 2.20 |
-| `legacy`, `cuda11.8-tf2.13` | CUDA 11.8 / TensorFlow 2.13 |
-| `cuda12.2-tf2.15` | CUDA 12.2 / TensorFlow 2.15 |
+
+| Alias                                  | Target                      |
+| -------------------------------------- | --------------------------- |
+| `latest`, `stable`, `cuda12.5-tf2.20`  | CUDA 12.5 / TensorFlow 2.20 |
+| `legacy`, `cuda11.8-tf2.13`            | CUDA 11.8 / TensorFlow 2.13 |
+| `cuda12.2-tf2.15`                      | CUDA 12.2 / TensorFlow 2.15 |
 | `cuda12.8-tf2.20`, `h200-experimental` | CUDA 12.8 / TensorFlow 2.20 |
+
 
 TensorFlow 공식 빌드 구성 기준으로 TensorFlow 2.20.0은 CUDA 12.5/cuDNN 9.3 조합이다. CUDA 12.8 이미지는 H200/LAB10 검증 전까지 experimental로 둔다.
 
@@ -75,15 +79,17 @@ noVNC는 기존처럼 opt-in이다.
 
 관련 환경변수:
 
-| 환경변수 | 기본값 | 설명 |
-| --- | --- | --- |
-| `ENABLE_VNC` | `false` | `true`이면 TigerVNC/noVNC를 시작한다. |
-| `VNC_PASSWORD` | 랜덤 8자리 | 지정하지 않으면 `/home/$USER_ID/vnc_password.txt`에 저장한다. |
-| `VNC_RESOLUTION` | `1920x1080` | VNC 화면 해상도 |
-| `VNC_DEPTH` | `24` | VNC 색상 깊이 |
-| `VNC_DISPLAY` | `1` | VNC display 번호. 기본 VNC 포트는 `5901` |
-| `NOVNC_PORT` | `6080` | noVNC listen 포트 |
-| `STRICT_CUDA_COMPAT` | `false` | 최소 NVIDIA driver 미만이면 startup 실패 |
+
+| 환경변수                 | 기본값         | 설명                                                |
+| -------------------- | ----------- | ------------------------------------------------- |
+| `ENABLE_VNC`         | `false`     | `true`이면 TigerVNC/noVNC를 시작한다.                    |
+| `VNC_PASSWORD`       | 랜덤 8자리      | 지정하지 않으면 `/home/$USER_ID/vnc_password.txt`에 저장한다. |
+| `VNC_RESOLUTION`     | `1920x1080` | VNC 화면 해상도                                        |
+| `VNC_DEPTH`          | `24`        | VNC 색상 깊이                                         |
+| `VNC_DISPLAY`        | `1`         | VNC display 번호. 기본 VNC 포트는 `5901`                 |
+| `NOVNC_PORT`         | `6080`      | noVNC listen 포트                                   |
+| `STRICT_CUDA_COMPAT` | `false`     | 최소 NVIDIA driver 미만이면 startup 실패                  |
+
 
 ## Tests
 
@@ -140,4 +146,4 @@ ansible-playbook \
 ## Admin Notes
 
 관리자용 노션 문서:
-https://www.notion.so/DECS-280c7692a263802ca40ff68b38f58dd1?source=copy_link
+[https://www.notion.so/DECS-280c7692a263802ca40ff68b38f58dd1?source=copy_link](https://www.notion.so/DECS-280c7692a263802ca40ff68b38f58dd1?source=copy_link)
