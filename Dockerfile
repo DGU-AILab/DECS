@@ -13,6 +13,8 @@ ARG PYTHON_VERSION=3.10
 ARG UBUNTU_VERSION=22.04
 ARG MIN_NVIDIA_DRIVER=555.42.06
 ARG MINIFORGE_VERSION=25.3.1-0
+ARG CONDA_VERSION=26.3.2
+ARG CONDA_PACKAGES="ipywidgets jupyterlab jupyter_client<8.9 micromamba notebook pip"
 
 LABEL org.opencontainers.image.base.name="${BASE_IMAGE}" \
       ai.dgu.decs.variant="${DECS_IMAGE_VARIANT}" \
@@ -88,15 +90,12 @@ RUN conda config --system --set channel_priority strict \
     && conda config --system --add channels conda-forge \
     && conda install -n base -y \
         "python=${PYTHON_VERSION}" \
-        ipywidgets \
-        jupyterlab \
-        micromamba \
-        notebook \
-        pip \
-    && python -m pip install --no-cache-dir --upgrade pip \
-    && python -m pip install --no-cache-dir "${TENSORFLOW_PACKAGE}" \
+        "conda=${CONDA_VERSION}" \
+        ${CONDA_PACKAGES} \
     && conda clean -afy \
-    && conda init bash
+    && conda init bash \
+    && python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir "${TENSORFLOW_PACKAGE}"
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends tigervnc-tools \
