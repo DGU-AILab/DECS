@@ -14,6 +14,7 @@ KRB5CCNAME="${KRB5CCNAME:-${DECS_KRB5CCNAME:-}}"
 KRB5_REALM="${KRB5_REALM:-FARM.DECS.INTERNAL}"
 DECS_KRB5_PRINCIPAL="${DECS_KRB5_PRINCIPAL:-${USER_ID}@${KRB5_REALM}}"
 DECS_KERBEROS_HOST_KEYTAB="${DECS_KERBEROS_HOST_KEYTAB:-false}"
+DECS_DISABLE_USER_SUDO="${DECS_DISABLE_USER_SUDO:-false}"
 DECS_HOME_WRITABLE=true
 USER_HOME="/home/$USER_ID"
 JUPYTER_DIR="$USER_HOME/decs_jupyter_lab"
@@ -113,8 +114,13 @@ ensure_group_and_user() {
     fi
 
     usermod -aG "$USER_GROUP" "$USER_ID"
-    printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$USER_ID" > "/etc/sudoers.d/$USER_ID"
-    chmod 0440 "/etc/sudoers.d/$USER_ID"
+    if is_truthy "$DECS_DISABLE_USER_SUDO"; then
+        rm -f "/etc/sudoers.d/$USER_ID"
+        gpasswd -d "$USER_ID" sudo >/dev/null 2>&1 || true
+    else
+        printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$USER_ID" > "/etc/sudoers.d/$USER_ID"
+        chmod 0440 "/etc/sudoers.d/$USER_ID"
+    fi
     echo "$USER_ID:$USER_PW" | chpasswd
 }
 
