@@ -41,6 +41,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN apt-get clean \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
+        acl \
         auditd \
         ca-certificates \
         curl \

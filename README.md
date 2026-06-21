@@ -89,9 +89,17 @@ noVNC는 기존처럼 opt-in이다.
 | `KRB5_REALM` | `FARM.DECS.INTERNAL` | `DECS_KRB5_PRINCIPAL` 기본값을 만들 때 쓰는 realm. |
 | `DECS_KRB5_PRINCIPAL` | `$USER_ID@$KRB5_REALM` | 이 컨테이너가 기대하는 Kerberos principal. |
 | `DECS_KERBEROS_HOST_KEYTAB` | `false` | `true`이면 사용자가 `kinit`하는 대신 host-side keytab refresh가 ccache를 만든다고 보고 대기한다. |
-| `DECS_DISABLE_USER_SUDO` | `false` | `true`이면 생성 사용자에게 passwordless sudo를 주지 않고 기존 `/etc/sudoers.d/$USER_ID`도 제거한다. Kerberized NFS에서는 UID spoofing 방지를 위해 켜야 한다. |
+| `DECS_USER_SUDO_MODE` | `restricted` | `disabled`, `restricted`, `allowed` 중 하나. 기본 `restricted`는 package install용 sudo는 허용하되 UID 전환, 권한 변경, mount, root shell, interpreter one-liner, 보호 경로 overwrite를 차단한다. |
 
-Kerberized NFS 모드에서는 `~/uid/script/create_container.sh --enable-kerberos true`가 host ccache directory를 컨테이너에 bind mount하고 `KRB5CCNAME`을 설정한다. host는 root-only keytab으로 `kinit -kt`를 수행해 ticket을 만들고, 컨테이너에는 keytab 없이 ccache만 공유한다. ticket 상태는 컨테이너 안에서 `decs-kerberos-status`로 확인할 수 있다. 이 모드에서는 사용자가 container root가 되면 다른 UID로 전환해 host의 다른 ccache를 사용할 수 있으므로 `DECS_DISABLE_USER_SUDO=true`로 passwordless sudo를 비활성화해야 한다.
+Kerberized NFS 모드에서는 `~/uid/script/create_container.sh --enable-kerberos true`가 host ccache directory를 컨테이너에 bind mount하고 `KRB5CCNAME`을 설정한다. host는 root-only keytab으로 `kinit -kt`를 수행해 ticket을 만들고, 컨테이너에는 keytab 없이 ccache만 공유한다. ticket 상태는 컨테이너 안에서 `decs-kerberos-status`로 확인할 수 있다. 기본 sudo mode는 `restricted`이며, 사용자가 container root로 다른 UID를 가장해 host의 다른 ccache를 쓰는 경로를 막는다.
+
+Kerberos group sharing은 사용자가 직접 자기 홈 안의 디렉토리를 여는 방식이다. 관리자가 create script에서 AD group과 membership만 준비하면, 사용자는 컨테이너 안에서 다음처럼 공유 디렉토리를 만들 수 있다.
+
+```bash
+decs-share ~/sharing_dir groupA
+```
+
+이 helper는 사용자 권한으로만 `mkdir`, `chgrp`, `chmod 2770`을 수행한다. `sudo chgrp/chmod/chown`은 restricted sudo에서 차단되지만, 일반 사용자 권한의 `chgrp/chmod`는 self-service 공유를 위해 허용된다.
 
 ## Tests
 

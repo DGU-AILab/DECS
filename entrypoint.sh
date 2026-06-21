@@ -14,7 +14,7 @@ KRB5CCNAME="${KRB5CCNAME:-${DECS_KRB5CCNAME:-}}"
 KRB5_REALM="${KRB5_REALM:-FARM.DECS.INTERNAL}"
 DECS_KRB5_PRINCIPAL="${DECS_KRB5_PRINCIPAL:-${USER_ID}@${KRB5_REALM}}"
 DECS_KERBEROS_HOST_KEYTAB="${DECS_KERBEROS_HOST_KEYTAB:-false}"
-DECS_DISABLE_USER_SUDO="${DECS_DISABLE_USER_SUDO:-false}"
+DECS_USER_SUDO_MODE="${DECS_USER_SUDO_MODE:-restricted}"
 DECS_HOME_WRITABLE=true
 USER_HOME="/home/$USER_ID"
 JUPYTER_DIR="$USER_HOME/decs_jupyter_lab"
@@ -37,6 +37,107 @@ version_ge() {
     local current="$1"
     local required="$2"
     [[ "$(printf "%s\n%s\n" "$required" "$current" | sort -V | head -n1)" == "$required" ]]
+}
+
+write_restricted_sudoers() {
+    local sudoers_file="/etc/sudoers.d/$USER_ID"
+    local alias_suffix="${TARGET_UID}_${TARGET_GID}"
+    local switch_alias="DECS_FORBID_SWITCH_${alias_suffix}"
+    local perms_alias="DECS_FORBID_PERMS_${alias_suffix}"
+    local mount_alias="DECS_FORBID_MOUNT_${alias_suffix}"
+    local shell_alias="DECS_FORBID_SHELL_${alias_suffix}"
+    local interp_alias="DECS_FORBID_INTERP_${alias_suffix}"
+    local protected_write_alias="DECS_FORBID_PROTECTED_WRITE_${alias_suffix}"
+
+    cat > "$sudoers_file" <<EOF
+Cmnd_Alias ${switch_alias} = /usr/bin/sudo -u *, /bin/sudo -u *, /usr/bin/sudo --user *, /bin/sudo --user *, /usr/bin/sudo * -u *, /bin/sudo * -u *, /usr/bin/sudo * --user *, /bin/sudo * --user *, sudoedit, sudoedit *, /usr/bin/su, /bin/su, /usr/bin/setpriv, /usr/bin/runuser, /usr/sbin/runuser, /usr/bin/newuidmap, /usr/bin/newgidmap
+Cmnd_Alias ${perms_alias} = /usr/bin/chown, /bin/chown, /usr/bin/chgrp, /bin/chgrp, /usr/bin/chmod, /bin/chmod
+Cmnd_Alias ${mount_alias} = /usr/bin/mount, /bin/mount, /usr/bin/umount, /bin/umount, /usr/bin/nsenter, /usr/bin/unshare
+Cmnd_Alias ${shell_alias} = /bin/bash, /usr/bin/bash, /bin/sh, /usr/bin/sh, /bin/dash, /usr/bin/dash, /bin/zsh, /usr/bin/zsh, /bin/fish, /usr/bin/fish
+Cmnd_Alias ${interp_alias} = /usr/bin/python -c *, /usr/bin/python3 -c *, /usr/bin/python* -c *, /usr/local/bin/python* -c *, /opt/conda/bin/python* -c *, /usr/bin/perl -e *, /usr/bin/ruby -e *, /usr/bin/node -c *, /usr/bin/node -e *, /usr/bin/node --check *, /usr/bin/node --eval *
+Cmnd_Alias ${protected_write_alias} = /bin/cp * /etc/sudoers*, /usr/bin/cp * /etc/sudoers*, /bin/cp * /etc/passwd, /usr/bin/cp * /etc/passwd, /bin/cp * /etc/group, /usr/bin/cp * /etc/group, /bin/cp * /run/user/*, /usr/bin/cp * /run/user/*, /bin/cp * /mnt/*, /usr/bin/cp * /mnt/*, /bin/cp * /home/*, /usr/bin/cp * /home/*, /bin/mv * /etc/sudoers*, /usr/bin/mv * /etc/sudoers*, /bin/mv * /etc/passwd, /usr/bin/mv * /etc/passwd, /bin/mv * /etc/group, /usr/bin/mv * /etc/group, /bin/mv * /run/user/*, /usr/bin/mv * /run/user/*, /bin/mv * /mnt/*, /usr/bin/mv * /mnt/*, /bin/mv * /home/*, /usr/bin/mv * /home/*, /usr/bin/install * /etc/sudoers*, /usr/bin/install * /etc/passwd, /usr/bin/install * /etc/group, /usr/bin/install * /run/user/*, /usr/bin/install * /mnt/*, /usr/bin/install * /home/*, /usr/bin/tee /etc/sudoers*, /usr/bin/tee * /etc/sudoers*, /usr/bin/tee /etc/passwd, /usr/bin/tee * /etc/passwd, /usr/bin/tee /etc/group, /usr/bin/tee * /etc/group, /usr/bin/tee /run/user/*, /usr/bin/tee * /run/user/*, /usr/bin/tee /mnt/*, /usr/bin/tee * /mnt/*, /usr/bin/tee /home/*, /usr/bin/tee * /home/*
+${USER_ID} ALL=(root) NOPASSWD: ALL, !${switch_alias}, !${perms_alias}, !${mount_alias}, !${shell_alias}, !${interp_alias}, !${protected_write_alias}
+EOF
+    chmod 0440 "$sudoers_file"
+    if command -v visudo >/dev/null 2>&1; then
+        visudo -cf "$sudoers_file" >/dev/null
+    fi
+}
+
+resolve_user_sudo_mode() {
+    local mode="$DECS_USER_SUDO_MODE"
+
+    case "$mode" in
+        disabled|disable|none|off)
+            echo "disabled"
+            ;;
+        restricted|restrict|limited)
+            echo "restricted"
+            ;;
+        allowed|allow|all|full)
+            echo "allowed"
+            ;;
+        *)
+            echo "[ERROR] DECS_USER_SUDO_MODE must be one of: disabled, restricted, allowed." >&2
+            exit 1
+            ;;
+    esac
+}
+
+install_kerberos_share_helper() {
+    cat >/usr/local/bin/decs-share <<'EOF'
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+  echo "Usage: decs-share DIRECTORY GROUP" >&2
+  echo "Example: decs-share ~/sharing_dir decsgrp_project_a" >&2
+}
+
+if [[ $# -ne 2 ]]; then
+  usage
+  exit 2
+fi
+
+share_dir="$1"
+share_group="$2"
+home_dir="${HOME:?HOME is required}"
+
+if ! getent group "$share_group" >/dev/null 2>&1; then
+  echo "Group not found in this container: $share_group" >&2
+  echo "Ask an administrator to assign this container user to the AD group, then recreate or restart the container." >&2
+  exit 1
+fi
+
+if ! id -nG | tr ' ' '\n' | grep -Fx -- "$share_group" >/dev/null; then
+  echo "Current user is not a member of group: $share_group" >&2
+  echo "Only groups assigned by an administrator can be used for sharing." >&2
+  exit 1
+fi
+
+mkdir -p -- "$share_dir"
+share_abs="$(realpath -m -- "$share_dir")"
+home_abs="$(realpath -m -- "$home_dir")"
+
+case "$share_abs" in
+  "$home_abs"/*) ;;
+  *)
+    echo "Refusing to share outside HOME: $share_abs" >&2
+    exit 1
+    ;;
+esac
+
+chgrp -- "$share_group" "$share_abs"
+chmod 2770 "$share_abs"
+
+if command -v setfacl >/dev/null 2>&1; then
+  setfacl -m "g:${share_group}:rwx,d:g:${share_group}:rwx,m::rwx" "$share_abs" 2>/dev/null || true
+fi
+
+echo "Shared $share_abs with group $share_group"
+stat -c '%A %U %G %n' "$share_abs" 2>/dev/null || true
+EOF
+    chmod 0755 /usr/local/bin/decs-share
 }
 
 run_as_user() {
@@ -114,9 +215,14 @@ ensure_group_and_user() {
     fi
 
     usermod -aG "$USER_GROUP" "$USER_ID"
-    if is_truthy "$DECS_DISABLE_USER_SUDO"; then
+    local sudo_mode
+    sudo_mode="$(resolve_user_sudo_mode)"
+
+    if [[ "$sudo_mode" == "disabled" ]]; then
         rm -f "/etc/sudoers.d/$USER_ID"
         gpasswd -d "$USER_ID" sudo >/dev/null 2>&1 || true
+    elif [[ "$sudo_mode" == "restricted" ]]; then
+        write_restricted_sudoers
     else
         printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$USER_ID" > "/etc/sudoers.d/$USER_ID"
         chmod 0440 "/etc/sudoers.d/$USER_ID"
@@ -201,6 +307,7 @@ fi
 klist -c "$KRB5CCNAME"
 EOF
     chmod 0755 /usr/local/bin/decs-kerberos-status
+    install_kerberos_share_helper
 }
 
 refresh_user_bashrc() {

@@ -29,6 +29,7 @@ assert_contains "$DOCKERFILE" '"conda=${CONDA_VERSION}"' "conda install pin"
 assert_contains "$DOCKERFILE" 'ARG CONDA_PACKAGES=' "conda package list override"
 assert_contains "$DOCKERFILE" 'jupyter_client<8.9' "jupyter client compatible with TensorFlow 2.13 typing_extensions"
 assert_contains "$DOCKERFILE" 'krb5-user' "Kerberos client package"
+assert_contains "$DOCKERFILE" 'acl' "POSIX ACL tools for Kerberos group sharing"
 
 conda_clean_line="$(line_number "&& conda clean -afy")"
 conda_init_line="$(line_number "&& conda init bash")"
