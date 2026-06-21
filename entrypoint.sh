@@ -15,6 +15,7 @@ KRB5_REALM="${KRB5_REALM:-FARM.DECS.INTERNAL}"
 DECS_KRB5_PRINCIPAL="${DECS_KRB5_PRINCIPAL:-${USER_ID}@${KRB5_REALM}}"
 DECS_KERBEROS_HOST_KEYTAB="${DECS_KERBEROS_HOST_KEYTAB:-false}"
 DECS_USER_SUDO_MODE="${DECS_USER_SUDO_MODE:-restricted}"
+DECS_SUPPLEMENTAL_GROUPS="${DECS_SUPPLEMENTAL_GROUPS:-}"
 DECS_HOME_WRITABLE=true
 USER_HOME="/home/$USER_ID"
 JUPYTER_DIR="$USER_HOME/decs_jupyter_lab"
@@ -140,6 +141,39 @@ EOF
     chmod 0755 /usr/local/bin/decs-share
 }
 
+ensure_supplemental_groups() {
+    [[ -n "$DECS_SUPPLEMENTAL_GROUPS" ]] || return 0
+
+    local spec group_name group_gid actual_gid
+    local old_ifs="$IFS"
+    IFS=','
+    for spec in $DECS_SUPPLEMENTAL_GROUPS; do
+        [[ -n "$spec" ]] || continue
+        group_name="${spec%%:*}"
+        group_gid="${spec##*:}"
+
+        if [[ -z "$group_name" || "$group_name" == "$spec" || ! "$group_gid" =~ ^[0-9]+$ ]]; then
+            echo "[ERROR] Invalid DECS_SUPPLEMENTAL_GROUPS entry: $spec" >&2
+            IFS="$old_ifs"
+            exit 1
+        fi
+
+        if getent group "$group_name" >/dev/null 2>&1; then
+            actual_gid="$(getent group "$group_name" | awk -F: '{print $3}')"
+            if [[ "$actual_gid" != "$group_gid" ]]; then
+                echo "[ERROR] Supplemental group '$group_name' has gid '$actual_gid', expected '$group_gid'." >&2
+                IFS="$old_ifs"
+                exit 1
+            fi
+        else
+            groupadd -g "$group_gid" "$group_name"
+        fi
+
+        usermod -aG "$group_name" "$USER_ID"
+    done
+    IFS="$old_ifs"
+}
+
 run_as_user() {
     local -a user_env
     user_env=(HOME="$USER_HOME" USER="$USER_ID")
@@ -215,6 +249,8 @@ ensure_group_and_user() {
     fi
 
     usermod -aG "$USER_GROUP" "$USER_ID"
+    ensure_supplemental_groups
+
     local sudo_mode
     sudo_mode="$(resolve_user_sudo_mode)"
 
