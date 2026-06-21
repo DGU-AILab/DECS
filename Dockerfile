@@ -50,6 +50,7 @@ RUN apt-get clean \
         fonts-nanum-coding \
         fonts-nanum-extra \
         gnupg \
+        krb5-user \
         net-tools \
         novnc \
         openssh-server \

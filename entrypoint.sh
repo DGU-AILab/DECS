@@ -10,6 +10,11 @@ USER_PW="${USER_PW:-ailab2260}"
 USER_GROUP="${USER_GROUP:-$USER_ID}"
 TARGET_UID="${TARGET_UID:-${UID:-}}"
 TARGET_GID="${TARGET_GID:-${GID:-${TARGET_UID:-}}}"
+KRB5CCNAME="${KRB5CCNAME:-${DECS_KRB5CCNAME:-}}"
+KRB5_REALM="${KRB5_REALM:-FARM.DECS.INTERNAL}"
+DECS_KRB5_PRINCIPAL="${DECS_KRB5_PRINCIPAL:-${USER_ID}@${KRB5_REALM}}"
+DECS_KERBEROS_HOST_KEYTAB="${DECS_KERBEROS_HOST_KEYTAB:-false}"
+DECS_HOME_WRITABLE=true
 USER_HOME="/home/$USER_ID"
 JUPYTER_DIR="$USER_HOME/decs_jupyter_lab"
 JUPYTER_CONFIG_DIR="$USER_HOME/.jupyter"
@@ -34,7 +39,12 @@ version_ge() {
 }
 
 run_as_user() {
-    sudo -H -u "$USER_ID" env HOME="$USER_HOME" USER="$USER_ID" "$@"
+    local -a user_env
+    user_env=(HOME="$USER_HOME" USER="$USER_ID")
+    if [[ -n "$KRB5CCNAME" ]]; then
+        user_env+=(KRB5CCNAME="$KRB5CCNAME")
+    fi
+    sudo -H -u "$USER_ID" env "${user_env[@]}" "$@"
 }
 
 print_image_runtime_info() {
@@ -119,8 +129,14 @@ ensure_user_home() {
     chown "$TARGET_UID:$TARGET_GID" "$USER_HOME" 2>/dev/null || true
 
     if ! run_as_user test -w "$USER_HOME"; then
-        echo "[ERROR] $USER_HOME is not writable by $USER_ID (${TARGET_UID}:${TARGET_GID}). Check NAS ownership and root_squash provisioning." >&2
-        exit 1
+        if [[ -n "$KRB5CCNAME" ]]; then
+            DECS_HOME_WRITABLE=false
+            echo "[WARN] $USER_HOME is not writable yet. Kerberos ticket may be required; run kinit inside the container." >&2
+            return 0
+        else
+            echo "[ERROR] $USER_HOME is not writable by $USER_ID (${TARGET_UID}:${TARGET_GID}). Check NAS ownership and root_squash provisioning." >&2
+            exit 1
+        fi
     fi
 
     run_as_user chmod 750 "$USER_HOME" || true
@@ -144,6 +160,41 @@ sudo mv $current_time.txt /var/log/audit/
 EOF
 fi
 '
+}
+
+ensure_kerberos_runtime() {
+    if [[ -z "$KRB5CCNAME" ]]; then
+        return 0
+    fi
+
+    local ccache_path="$KRB5CCNAME"
+    if [[ "$ccache_path" == FILE:* ]]; then
+        ccache_path="${ccache_path#FILE:}"
+    fi
+
+    local ccache_dir
+    ccache_dir="$(dirname "$ccache_path")"
+    mkdir -p "$ccache_dir"
+    chown "$TARGET_UID:$TARGET_GID" "$ccache_dir" 2>/dev/null || true
+    chmod 700 "$ccache_dir" 2>/dev/null || true
+
+    cat >/etc/profile.d/decs-kerberos.sh <<EOF
+export KRB5CCNAME='${KRB5CCNAME}'
+export KRB5_REALM='${KRB5_REALM}'
+export DECS_KRB5_PRINCIPAL='${DECS_KRB5_PRINCIPAL}'
+EOF
+    chmod 0644 /etc/profile.d/decs-kerberos.sh
+
+    cat >/usr/local/bin/decs-kerberos-status <<'EOF'
+#!/bin/bash
+set -euo pipefail
+if [[ -z "${KRB5CCNAME:-}" ]]; then
+  echo "KRB5CCNAME is not set."
+  exit 1
+fi
+klist -c "$KRB5CCNAME"
+EOF
+    chmod 0755 /usr/local/bin/decs-kerberos-status
 }
 
 refresh_user_bashrc() {
@@ -233,7 +284,7 @@ ensure_jupyter_config() {
         if [[ -s /jupyter_config/jupyter_notebook_config.py ]]; then
             run_as_user cp /jupyter_config/jupyter_notebook_config.py "$JUPYTER_CONFIG_FILE"
         else
-            run_as_user "$JUPYTER_BIN" notebook --generate-config --config="$JUPYTER_CONFIG_FILE"
+            run_as_user touch "$JUPYTER_CONFIG_FILE"
         fi
     else
         echo "jupyter_notebook_config.py already exists."
@@ -269,7 +320,12 @@ PY
 
 start_jupyter() {
     local token
+    local -a user_env
     token="$(generate_token)"
+    user_env=(HOME="$USER_HOME" USER="$USER_ID")
+    if [[ -n "$KRB5CCNAME" ]]; then
+        user_env+=(KRB5CCNAME="$KRB5CCNAME")
+    fi
 
     run_as_user bash -c '
 set -euo pipefail
@@ -278,7 +334,7 @@ chmod 600 "$2"
 ' _ "$token" "$JUPYTER_DIR/jupyter_token.txt"
 
     echo "trying jupyter lab..."
-    nohup sudo -H -u "$USER_ID" env HOME="$USER_HOME" USER="$USER_ID" \
+    nohup sudo -H -u "$USER_ID" env "${user_env[@]}" \
         "$JUPYTER_BIN" lab --NotebookApp.token="$token" --config="$JUPYTER_CONFIG_FILE" \
         >/tmp/jupyter-${USER_ID}.log 2>&1 &
     echo "jupyter lab listening!"
@@ -297,6 +353,12 @@ start_novnc() {
     local novnc_port="${NOVNC_PORT:-6080}"
     local vnc_password_file="$USER_HOME/vnc_password.txt"
     local vnc_password
+    local -a user_env
+
+    user_env=(HOME="$USER_HOME" USER="$USER_ID")
+    if [[ -n "$KRB5CCNAME" ]]; then
+        user_env+=(KRB5CCNAME="$KRB5CCNAME")
+    fi
 
     vnc_display="${vnc_display#:}"
     if ! [[ "$vnc_display" =~ ^[0-9]+$ && "$novnc_port" =~ ^[0-9]+$ && "$vnc_depth" =~ ^[0-9]+$ ]]; then
@@ -363,20 +425,54 @@ chmod +x "$3/xstartup"
 
     pkill -f "websockify.*$novnc_port" >/dev/null 2>&1 || true
     echo "trying noVNC on 0.0.0.0:$novnc_port..."
-    nohup sudo -H -u "$USER_ID" env HOME="$USER_HOME" USER="$USER_ID" \
+    nohup sudo -H -u "$USER_ID" env "${user_env[@]}" \
         websockify --web=/usr/share/novnc "0.0.0.0:$novnc_port" "localhost:$vnc_port" \
         >/tmp/novnc.log 2>&1 &
     echo "noVNC listening on port $novnc_port. VNC password saved to $vnc_password_file"
 }
 
+start_user_apps() {
+    refresh_user_bashrc
+    ensure_jupyter_config
+    start_jupyter
+    start_novnc || echo "VNC/noVNC startup failed."
+}
+
+start_kerberos_home_watcher() {
+    if [[ -z "$KRB5CCNAME" ]]; then
+        return 0
+    fi
+
+    if is_truthy "$DECS_KERBEROS_HOST_KEYTAB"; then
+        echo "Kerberos home is waiting for host-managed ticket refresh for ${DECS_KRB5_PRINCIPAL}."
+    else
+        echo "Kerberos home is waiting for a user ticket. Run: kinit ${DECS_KRB5_PRINCIPAL}"
+    fi
+    (
+        for _ in $(seq 1 720); do
+            if run_as_user test -w "$USER_HOME"; then
+                echo "Kerberos home is writable; starting user services."
+                DECS_HOME_WRITABLE=true
+                ensure_user_home
+                start_user_apps
+                exit 0
+            fi
+            sleep 10
+        done
+        echo "Timed out waiting for Kerberos ticket for $USER_ID; SSH remains available."
+    ) &
+}
+
 print_image_runtime_info || exit 1
 ensure_group_and_user
+ensure_kerberos_runtime
 ensure_user_home
-refresh_user_bashrc
 configure_system_login
-ensure_jupyter_config
-start_jupyter
-start_novnc || echo "VNC/noVNC startup failed."
+if [[ "$DECS_HOME_WRITABLE" == "true" ]]; then
+    start_user_apps
+else
+    start_kerberos_home_watcher
+fi
 ldconfig && echo "ldconfig executed successfully" || echo "ldconfig failed"
 
 tail -F /dev/null

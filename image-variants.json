@@ -1,6 +1,6 @@
 {
   "repository": "dguailab/decs",
-  "default_date_tag": "260618",
+  "default_date_tag": "260621",
   "notes": [
     "TensorFlow 2.20.0 is officially built against CUDA 12.5 and cuDNN 9.3.",
     "The CUDA 12.8 variant is provided as experimental until LAB10/H200 smoke tests pass."
