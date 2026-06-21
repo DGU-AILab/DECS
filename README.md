@@ -99,7 +99,7 @@ Kerberos group sharing은 사용자가 직접 자기 홈 안의 디렉토리를 
 decs-share ~/sharing_dir groupA
 ```
 
-이 helper는 사용자 권한으로만 `mkdir`, `chgrp`, `chmod 2770`을 수행한다. `sudo chgrp/chmod/chown`은 restricted sudo에서 차단되지만, 일반 사용자 권한의 `chgrp/chmod`는 self-service 공유를 위해 허용된다.
+이 helper는 사용자 권한으로만 `mkdir`, `chgrp`, `chmod 2770`을 수행하고, `setfacl`이 있으면 shared group에 parent traverse ACL과 share/default ACL을 부여한다. `sudo chgrp/chmod/chown`은 restricted sudo에서 차단되지만, 일반 사용자 권한의 `chgrp/chmod`는 self-service 공유를 위해 허용된다.
 
 ## Tests
 

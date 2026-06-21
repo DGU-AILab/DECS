@@ -132,6 +132,13 @@ chgrp -- "$share_group" "$share_abs"
 chmod 2770 "$share_abs"
 
 if command -v setfacl >/dev/null 2>&1; then
+  current_path="$share_abs"
+  while [[ "$current_path" != "$home_abs" ]]; do
+    current_path="$(dirname -- "$current_path")"
+    if [[ "$current_path" == "$home_abs" || "$current_path" == "$home_abs"/* ]]; then
+      setfacl -m "g:${share_group}:--x,m::rwx" "$current_path" 2>/dev/null || true
+    fi
+  done
   setfacl -m "g:${share_group}:rwx,d:g:${share_group}:rwx,m::rwx" "$share_abs" 2>/dev/null || true
 fi
 
