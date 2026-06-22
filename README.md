@@ -89,7 +89,7 @@ noVNC는 기존처럼 opt-in이다.
 | `KRB5_REALM` | `FARM.DECS.INTERNAL` | `DECS_KRB5_PRINCIPAL` 기본값을 만들 때 쓰는 realm. |
 | `DECS_KRB5_PRINCIPAL` | `$USER_ID@$KRB5_REALM` | 이 컨테이너가 기대하는 Kerberos principal. |
 | `DECS_KERBEROS_HOST_KEYTAB` | `false` | `true`이면 사용자가 `kinit`하는 대신 host-side keytab refresh가 ccache를 만든다고 보고 대기한다. |
-| `DECS_USER_SUDO_MODE` | `restricted` | `disabled`, `restricted`, `allowed` 중 하나. 기본 `restricted`는 package install용 sudo는 허용하되 UID 전환, 권한 변경, mount, root shell, interpreter one-liner, 보호 경로 overwrite를 차단한다. |
+| `DECS_USER_SUDO_MODE` | `restricted` | `disabled`, `restricted`, `allowed` 중 하나. 기본 `restricted`는 package install용 sudo는 허용하되 UID 전환, 권한 변경, mount, root shell, interpreter one-liner, root editor/pager, 보호 경로 overwrite를 차단한다. |
 
 Kerberized NFS 모드에서는 `~/uid/script/create_container.sh --enable-kerberos true`가 host ccache directory를 컨테이너에 bind mount하고 `KRB5CCNAME`을 설정한다. host는 root-only keytab으로 `kinit -kt`를 수행해 ticket을 만들고, 컨테이너에는 keytab 없이 ccache만 공유한다. ticket 상태는 컨테이너 안에서 `decs-kerberos-status`로 확인할 수 있다. 기본 sudo mode는 `restricted`이며, 사용자가 container root로 다른 UID를 가장해 host의 다른 ccache를 쓰는 경로를 막는다.
 

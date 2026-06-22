@@ -48,6 +48,7 @@ write_restricted_sudoers() {
     local mount_alias="DECS_FORBID_MOUNT_${alias_suffix}"
     local shell_alias="DECS_FORBID_SHELL_${alias_suffix}"
     local interp_alias="DECS_FORBID_INTERP_${alias_suffix}"
+    local edit_alias="DECS_FORBID_EDIT_${alias_suffix}"
     local protected_write_alias="DECS_FORBID_PROTECTED_WRITE_${alias_suffix}"
 
     cat > "$sudoers_file" <<EOF
@@ -56,8 +57,9 @@ Cmnd_Alias ${perms_alias} = /usr/bin/chown, /bin/chown, /usr/bin/chgrp, /bin/chg
 Cmnd_Alias ${mount_alias} = /usr/bin/mount, /bin/mount, /usr/bin/umount, /bin/umount, /usr/bin/nsenter, /usr/bin/unshare
 Cmnd_Alias ${shell_alias} = /bin/bash, /usr/bin/bash, /bin/sh, /usr/bin/sh, /bin/dash, /usr/bin/dash, /bin/zsh, /usr/bin/zsh, /bin/fish, /usr/bin/fish
 Cmnd_Alias ${interp_alias} = /usr/bin/python -c *, /usr/bin/python3 -c *, /usr/bin/python* -c *, /usr/local/bin/python* -c *, /opt/conda/bin/python* -c *, /usr/bin/perl -e *, /usr/bin/ruby -e *, /usr/bin/node -c *, /usr/bin/node -e *, /usr/bin/node --check *, /usr/bin/node --eval *
+Cmnd_Alias ${edit_alias} = /usr/bin/vi, /bin/vi, /usr/bin/vim, /usr/bin/vim.basic, /usr/bin/vim.tiny, /usr/bin/nvim, /usr/bin/view, /usr/bin/vimdiff, /usr/bin/rvim, /usr/bin/rview, /usr/bin/nano, /bin/nano, /usr/bin/editor, /usr/bin/sensible-editor, /usr/bin/emacs, /usr/bin/emacs-nox, /usr/bin/less, /bin/less, /usr/bin/more, /bin/more, /usr/bin/pager, /usr/bin/sensible-pager, /usr/bin/man
 Cmnd_Alias ${protected_write_alias} = /bin/cp * /etc/sudoers*, /usr/bin/cp * /etc/sudoers*, /bin/cp * /etc/passwd, /usr/bin/cp * /etc/passwd, /bin/cp * /etc/group, /usr/bin/cp * /etc/group, /bin/cp * /run/user/*, /usr/bin/cp * /run/user/*, /bin/cp * /mnt/*, /usr/bin/cp * /mnt/*, /bin/cp * /home/*, /usr/bin/cp * /home/*, /bin/mv * /etc/sudoers*, /usr/bin/mv * /etc/sudoers*, /bin/mv * /etc/passwd, /usr/bin/mv * /etc/passwd, /bin/mv * /etc/group, /usr/bin/mv * /etc/group, /bin/mv * /run/user/*, /usr/bin/mv * /run/user/*, /bin/mv * /mnt/*, /usr/bin/mv * /mnt/*, /bin/mv * /home/*, /usr/bin/mv * /home/*, /usr/bin/install * /etc/sudoers*, /usr/bin/install * /etc/passwd, /usr/bin/install * /etc/group, /usr/bin/install * /run/user/*, /usr/bin/install * /mnt/*, /usr/bin/install * /home/*, /usr/bin/tee /etc/sudoers*, /usr/bin/tee * /etc/sudoers*, /usr/bin/tee /etc/passwd, /usr/bin/tee * /etc/passwd, /usr/bin/tee /etc/group, /usr/bin/tee * /etc/group, /usr/bin/tee /run/user/*, /usr/bin/tee * /run/user/*, /usr/bin/tee /mnt/*, /usr/bin/tee * /mnt/*, /usr/bin/tee /home/*, /usr/bin/tee * /home/*
-${USER_ID} ALL=(root) NOPASSWD: ALL, !${switch_alias}, !${perms_alias}, !${mount_alias}, !${shell_alias}, !${interp_alias}, !${protected_write_alias}
+${USER_ID} ALL=(root) NOPASSWD: ALL, !${switch_alias}, !${perms_alias}, !${mount_alias}, !${shell_alias}, !${interp_alias}, !${edit_alias}, !${protected_write_alias}
 EOF
     chmod 0440 "$sudoers_file"
     if command -v visudo >/dev/null 2>&1; then
