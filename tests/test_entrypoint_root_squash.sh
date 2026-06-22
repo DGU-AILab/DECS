@@ -60,7 +60,7 @@ assert_contains "$ENTRYPOINT" 'Run: kinit ${DECS_KRB5_PRINCIPAL}' "Kerberos kini
 assert_contains "$ENTRYPOINT" "export KRB5CCNAME=" "Kerberos profile export"
 assert_contains "$ENTRYPOINT" "export DECS_KRB5_PRINCIPAL=" "Kerberos profile principal export"
 assert_contains "$ENTRYPOINT" "decs-kerberos-status" "Kerberos status helper"
-assert_contains "$ENTRYPOINT" "decs-share" "Kerberos group share helper"
+assert_contains "$ENTRYPOINT" "group-dir-share" "Kerberos group share helper"
 assert_contains "$ENTRYPOINT" 'chgrp -- "$share_group" "$share_abs"' "share helper changes group as user"
 assert_contains "$ENTRYPOINT" 'chmod 2770 "$share_abs"' "share helper sets setgid group permissions"
 assert_contains "$ENTRYPOINT" 'setfacl -m "g:${share_group}:--x,m::rwx" "$current_path"' "share helper grants parent traverse ACL"

@@ -86,13 +86,13 @@ resolve_user_sudo_mode() {
 }
 
 install_kerberos_share_helper() {
-    cat >/usr/local/bin/decs-share <<'EOF'
+    cat >/usr/local/bin/group-dir-share <<'EOF'
 #!/bin/bash
 set -euo pipefail
 
 usage() {
-  echo "Usage: decs-share DIRECTORY GROUP" >&2
-  echo "Example: decs-share ~/sharing_dir decsgrp_project_a" >&2
+  echo "Usage: group-dir-share DIRECTORY GROUP" >&2
+  echo "Example: group-dir-share ~/sharing_dir decsgrp_project_a" >&2
 }
 
 if [[ $# -ne 2 ]]; then
@@ -145,7 +145,7 @@ fi
 echo "Shared $share_abs with group $share_group"
 stat -c '%A %U %G %n' "$share_abs" 2>/dev/null || true
 EOF
-    chmod 0755 /usr/local/bin/decs-share
+    chmod 0755 /usr/local/bin/group-dir-share
 }
 
 ensure_supplemental_groups() {

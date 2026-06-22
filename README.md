@@ -96,7 +96,7 @@ Kerberized NFS 모드에서는 `~/uid/script/create_container.sh --enable-kerber
 Kerberos group sharing은 사용자가 직접 자기 홈 안의 디렉토리를 여는 방식이다. 관리자가 create script에서 AD group과 membership만 준비하면, 사용자는 컨테이너 안에서 다음처럼 공유 디렉토리를 만들 수 있다.
 
 ```bash
-decs-share ~/sharing_dir groupA
+group-dir-share ~/sharing_dir groupA
 ```
 
 이 helper는 사용자 권한으로만 `mkdir`, `chgrp`, `chmod 2770`을 수행하고, `setfacl`이 있으면 shared group에 parent traverse ACL과 share/default ACL을 부여한다. `sudo chgrp/chmod/chown`은 restricted sudo에서 차단되지만, 일반 사용자 권한의 `chgrp/chmod`는 self-service 공유를 위해 허용된다.
