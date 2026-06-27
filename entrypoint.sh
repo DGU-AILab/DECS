@@ -300,7 +300,7 @@ ensure_user_home() {
 
     local skel_file
     for skel_file in .profile .bashrc .bash_logout; do
-        if [[ -f "/etc/skel/$skel_file" && ! -e "$USER_HOME/$skel_file" ]]; then
+        if [[ -f "/etc/skel/$skel_file" ]] && ! run_as_user test -e "$USER_HOME/$skel_file"; then
             run_as_user cp "/etc/skel/$skel_file" "$USER_HOME/$skel_file"
         fi
     done
