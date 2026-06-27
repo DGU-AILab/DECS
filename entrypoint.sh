@@ -6,10 +6,10 @@ JUPYTER_BIN="${JUPYTER_BIN:-$CONDA_DIR/bin/jupyter}"
 USER_PW="${USER_PW:-ailab2260}"
 
 : "${USER_ID:?USER_ID is required}"
+: "${UID:?UID is required}"
 
 USER_GROUP="${USER_GROUP:-$USER_ID}"
-TARGET_UID="${TARGET_UID:-${UID:-}}"
-TARGET_GID="${TARGET_GID:-${GID:-${TARGET_UID:-}}}"
+GID="${GID:-$UID}"
 KRB5CCNAME="${KRB5CCNAME:-${DECS_KRB5CCNAME:-}}"
 KRB5_REALM="${KRB5_REALM:-FARM.DECS.INTERNAL}"
 DECS_KRB5_PRINCIPAL="${DECS_KRB5_PRINCIPAL:-${USER_ID}@${KRB5_REALM}}"
@@ -22,8 +22,8 @@ JUPYTER_DIR="$USER_HOME/decs_jupyter_lab"
 JUPYTER_CONFIG_DIR="$USER_HOME/.jupyter"
 JUPYTER_CONFIG_FILE="$JUPYTER_CONFIG_DIR/jupyter_notebook_config.py"
 
-if ! [[ "$TARGET_UID" =~ ^[0-9]+$ && "$TARGET_GID" =~ ^[0-9]+$ ]]; then
-    echo "[ERROR] TARGET_UID and TARGET_GID must be numeric." >&2
+if ! [[ "$UID" =~ ^[0-9]+$ && "$GID" =~ ^[0-9]+$ ]]; then
+    echo "[ERROR] UID and GID must be numeric." >&2
     exit 1
 fi
 
@@ -42,7 +42,7 @@ version_ge() {
 
 write_restricted_sudoers() {
     local sudoers_file="/etc/sudoers.d/$USER_ID"
-    local alias_suffix="${TARGET_UID}_${TARGET_GID}"
+    local alias_suffix="${UID}_${GID}"
     local switch_alias="DECS_FORBID_SWITCH_${alias_suffix}"
     local perms_alias="DECS_FORBID_PERMS_${alias_suffix}"
     local mount_alias="DECS_FORBID_MOUNT_${alias_suffix}"
@@ -234,27 +234,27 @@ ensure_group_and_user() {
     if getent group "$USER_GROUP" >/dev/null 2>&1; then
         local actual_gid
         actual_gid="$(getent group "$USER_GROUP" | awk -F: '{print $3}')"
-        if [[ "$actual_gid" != "$TARGET_GID" ]]; then
-            echo "[ERROR] Group '$USER_GROUP' has gid '$actual_gid', expected '$TARGET_GID'." >&2
+        if [[ "$actual_gid" != "$GID" ]]; then
+            echo "[ERROR] Group '$USER_GROUP' has gid '$actual_gid', expected '$GID'." >&2
             exit 1
         fi
     else
-        groupadd -g "$TARGET_GID" "$USER_GROUP"
+        groupadd -g "$GID" "$USER_GROUP"
     fi
 
     if id "$USER_ID" >/dev/null 2>&1; then
         local actual_uid actual_primary_gid
         actual_uid="$(id -u "$USER_ID")"
         actual_primary_gid="$(id -g "$USER_ID")"
-        if [[ "$actual_uid" != "$TARGET_UID" ]]; then
-            echo "[ERROR] User '$USER_ID' has uid '$actual_uid', expected '$TARGET_UID'." >&2
+        if [[ "$actual_uid" != "$UID" ]]; then
+            echo "[ERROR] User '$USER_ID' has uid '$actual_uid', expected '$UID'." >&2
             exit 1
         fi
-        if [[ "$actual_primary_gid" != "$TARGET_GID" ]]; then
+        if [[ "$actual_primary_gid" != "$GID" ]]; then
             usermod -g "$USER_GROUP" "$USER_ID"
         fi
     else
-        useradd -M -s /bin/bash -d "$USER_HOME" -u "$TARGET_UID" -g "$USER_GROUP" "$USER_ID"
+        useradd -M -s /bin/bash -d "$USER_HOME" -u "$UID" -g "$USER_GROUP" "$USER_ID"
     fi
 
     usermod -aG "$USER_GROUP" "$USER_ID"
@@ -278,12 +278,12 @@ ensure_group_and_user() {
 ensure_user_home() {
     if [[ ! -d "$USER_HOME" ]]; then
         mkdir -p "$USER_HOME" || {
-            echo "[ERROR] Could not create $USER_HOME. If /home is an NFS mount with root_squash, pre-create this directory on the NAS as ${TARGET_UID}:${TARGET_GID}." >&2
+            echo "[ERROR] Could not create $USER_HOME. If /home is an NFS mount with root_squash, pre-create this directory on the NAS as ${UID}:${GID}." >&2
             exit 1
         }
     fi
 
-    chown "$TARGET_UID:$TARGET_GID" "$USER_HOME" 2>/dev/null || true
+    chown "$UID:$GID" "$USER_HOME" 2>/dev/null || true
 
     if ! run_as_user test -w "$USER_HOME"; then
         if [[ -n "$KRB5CCNAME" ]]; then
@@ -291,7 +291,7 @@ ensure_user_home() {
             echo "[WARN] $USER_HOME is not writable yet. Kerberos ticket may be required; run kinit inside the container." >&2
             return 0
         else
-            echo "[ERROR] $USER_HOME is not writable by $USER_ID (${TARGET_UID}:${TARGET_GID}). Check NAS ownership and root_squash provisioning." >&2
+            echo "[ERROR] $USER_HOME is not writable by $USER_ID (${UID}:${GID}). Check NAS ownership and root_squash provisioning." >&2
             exit 1
         fi
     fi
@@ -332,7 +332,7 @@ ensure_kerberos_runtime() {
     local ccache_dir
     ccache_dir="$(dirname "$ccache_path")"
     mkdir -p "$ccache_dir"
-    chown "$TARGET_UID:$TARGET_GID" "$ccache_dir" 2>/dev/null || true
+    chown "$UID:$GID" "$ccache_dir" 2>/dev/null || true
     chmod 700 "$ccache_dir" 2>/dev/null || true
 
     cat >/etc/profile.d/decs-kerberos.sh <<EOF
@@ -392,7 +392,7 @@ ensure_sshd_allow_user() {
 }
 
 configure_system_login() {
-    echo "-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$TARGET_UID -k rm_commands" >> /etc/audit/audit.rules
+    echo "-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid=$UID -k rm_commands" >> /etc/audit/audit.rules
 
     if ! grep -q 'HISTTIMEFORMAT="\[%Y-%m-%d %H:%M:%S\] "' /etc/profile; then
         echo 'HISTTIMEFORMAT="[%Y-%m-%d %H:%M:%S] "' >> /etc/profile

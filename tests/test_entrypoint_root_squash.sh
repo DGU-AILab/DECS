@@ -28,8 +28,9 @@ assert_not_contains() {
 
 bash -n "$ENTRYPOINT"
 
-assert_contains "$ENTRYPOINT" 'TARGET_UID="${TARGET_UID:-${UID:-}}"' "TARGET_UID fallback"
-assert_contains "$ENTRYPOINT" 'TARGET_GID="${TARGET_GID:-${GID:-${TARGET_UID:-}}}"' "TARGET_GID fallback"
+assert_contains "$ENTRYPOINT" ': "${UID:?UID is required}"' "UID is required"
+assert_contains "$ENTRYPOINT" 'GID="${GID:-$UID}"' "GID defaults to UID"
+assert_contains "$ENTRYPOINT" '[ERROR] UID and GID must be numeric.' "UID/GID numeric validation"
 assert_contains "$ENTRYPOINT" 'KRB5CCNAME="${KRB5CCNAME:-${DECS_KRB5CCNAME:-}}"' "Kerberos ccache env fallback"
 assert_contains "$ENTRYPOINT" 'DECS_KRB5_PRINCIPAL="${DECS_KRB5_PRINCIPAL:-${USER_ID}@${KRB5_REALM}}"' "Kerberos principal fallback"
 assert_contains "$ENTRYPOINT" 'DECS_KERBEROS_HOST_KEYTAB="${DECS_KERBEROS_HOST_KEYTAB:-false}"' "host keytab mode default"
@@ -74,9 +75,11 @@ assert_contains "$ENTRYPOINT" 'user_env+=(KRB5CCNAME="$KRB5CCNAME")' "Kerberos e
 assert_contains "$ENTRYPOINT" 'sudo -H -u "$USER_ID" env "${user_env[@]}"' "Jupyter runs as user with env array"
 assert_contains "$ENTRYPOINT" 'c.NotebookApp.allow_root = False' "Jupyter does not run as root"
 assert_not_contains "$ENTRYPOINT" 'chown -R "$USER_ID:$USER_GROUP" "/home/$USER_ID"' "no recursive root chown on NFS home"
+assert_not_contains "$ENTRYPOINT" "TARGET_UID" "TARGET_UID interface removed"
+assert_not_contains "$ENTRYPOINT" "TARGET_GID" "TARGET_GID interface removed"
 
-assert_contains "$SMOKE_PLAYBOOK" "-e TARGET_UID={{ test_uid | quote }}" "smoke passes TARGET_UID"
-assert_contains "$SMOKE_PLAYBOOK" "-e TARGET_GID={{ test_gid | quote }}" "smoke passes TARGET_GID"
+assert_not_contains "$SMOKE_PLAYBOOK" "TARGET_UID" "smoke no longer passes TARGET_UID"
+assert_not_contains "$SMOKE_PLAYBOOK" "TARGET_GID" "smoke no longer passes TARGET_GID"
 assert_contains "$SMOKE_PLAYBOOK" '--mount type=bind,source={{ test_home_root | quote }},target=/smoke-home' "smoke helper mounts home root"
 assert_contains "$SMOKE_PLAYBOOK" 'mkdir -p "/smoke-home/${TEST_USERNAME}"' "smoke pre-creates user home"
 assert_contains "$SMOKE_PLAYBOOK" 'chown "${TEST_UID}:${TEST_GID}" "/smoke-home/${TEST_USERNAME}"' "smoke pre-creates home ownership"

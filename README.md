@@ -77,6 +77,10 @@ noVNC는 기존처럼 opt-in이다.
 
 | 환경변수 | 기본값 | 설명 |
 | --- | --- | --- |
+| `USER_ID` | 필수 | 컨테이너 안에 생성/검증할 사용자 이름 |
+| `UID` | 필수 | 컨테이너 사용자 UID. create-container가 DB/AD 기준으로 결정한 값을 전달한다. |
+| `GID` | `$UID` | 컨테이너 사용자 primary GID. create-container가 DB/AD 기준으로 결정한 값을 전달한다. |
+| `USER_GROUP` | `$USER_ID` | 컨테이너 primary group 이름 |
 | `ENABLE_VNC` | `false` | `true`이면 TigerVNC/noVNC를 시작한다. |
 | `VNC_PASSWORD` | 랜덤 8자리 | 지정하지 않으면 `/home/$USER_ID/vnc_password.txt`에 저장한다. |
 | `VNC_RESOLUTION` | `1920x1080` | VNC 화면 해상도 |
@@ -90,6 +94,8 @@ noVNC는 기존처럼 opt-in이다.
 | `DECS_KRB5_PRINCIPAL` | `$USER_ID@$KRB5_REALM` | 이 컨테이너가 기대하는 Kerberos principal. |
 | `DECS_KERBEROS_HOST_KEYTAB` | `false` | `true`이면 사용자가 `kinit`하는 대신 host-side keytab refresh가 ccache를 만든다고 보고 대기한다. |
 | `DECS_USER_SUDO_MODE` | `restricted` | `disabled`, `restricted`, `allowed` 중 하나. 기본 `restricted`는 package install용 sudo는 허용하되 UID 전환, 권한 변경, mount, root shell, interpreter one-liner, root editor/pager, 보호 경로 overwrite를 차단한다. |
+
+이미지는 `TARGET_UID`/`TARGET_GID`를 받지 않는다. 최종 identity는 `UID`/`GID` 하나만 사용하며, DB UID/GID와 AD `uidNumber`/`gidNumber`, FARM NFS returned UID/GID가 같은지는 create-container 쪽에서 보장한다.
 
 Kerberized NFS 모드에서는 `~/uid/script/create_container.sh --enable-kerberos true`가 host ccache directory를 컨테이너에 bind mount하고 `KRB5CCNAME`을 설정한다. host는 root-only keytab으로 `kinit -kt`를 수행해 ticket을 만들고, 컨테이너에는 keytab 없이 ccache만 공유한다. ticket 상태는 컨테이너 안에서 `decs-kerberos-status`로 확인할 수 있다. 기본 sudo mode는 `restricted`이며, 사용자가 container root로 다른 UID를 가장해 host의 다른 ccache를 쓰는 경로를 막는다.
 
