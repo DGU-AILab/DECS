@@ -36,6 +36,20 @@
       ]
     },
     {
+      "id": "cuda12.3-tf2.16-ubuntu22.04",
+      "base_image": "nvidia/cuda:12.3.2-devel-ubuntu22.04",
+      "cuda_version": "12.3",
+      "tensorflow_version": "2.16.1",
+      "tensorflow_package": "tensorflow[and-cuda]==2.16.1",
+      "python_version": "3.10",
+      "ubuntu_version": "22.04",
+      "min_nvidia_driver": "545.23.08",
+      "support": "stable",
+      "aliases": [
+        "cuda12.3-tf2.16"
+      ]
+    },
+    {
       "id": "cuda12.5-tf2.20-ubuntu22.04",
       "base_image": "nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04",
       "cuda_version": "12.5",

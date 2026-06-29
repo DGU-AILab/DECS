@@ -306,17 +306,21 @@ ensure_user_home() {
     done
 
     run_as_user bash -c '
-set -euo pipefail
-touch "$HOME/.bash_logout"
-if ! grep -q "history -w.*current_time" "$HOME/.bash_logout"; then
-  cat >> "$HOME/.bash_logout" <<'"'"'EOF'"'"'
-cd ~
+	set -euo pipefail
+	logout_file="$HOME/.bash_logout"
+	touch "$logout_file"
+	sed -i "/^cd ~$/,/^sudo mv \$current_time.txt \/var\/log\/audit\/$/d" "$logout_file"
+	sed -i "/^# BEGIN DECS history export$/,/^# END DECS history export$/d" "$logout_file"
+	cat >> "$logout_file" <<'"'"'EOF'"'"'
+# BEGIN DECS history export
+mkdir -p "$HOME/.history"
+chmod 700 "$HOME/.history" 2>/dev/null || true
 current_time=$(date +%Y-%m-%d_%H-%M-%S)
-history -w $current_time.txt
-sudo mv $current_time.txt /var/log/audit/
+history -w "$HOME/.history/${current_time}.txt"
+chmod 600 "$HOME/.history/${current_time}.txt" 2>/dev/null || true
+# END DECS history export
 EOF
-fi
-'
+	'
 }
 
 ensure_kerberos_runtime() {

@@ -8,6 +8,7 @@ DECS 이미지는 GPU/driver 호환성을 관리하기 위해 CUDA variant별로
 | --- | --- | --- | --- | --- | --- |
 | `cuda11.8-tf2.13-ubuntu22.04-260627` | 11.8 | 2.13.0 | `nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04` | 520.61.05 | stable |
 | `cuda12.2-tf2.15-ubuntu22.04-260627` | 12.2 | 2.15.0 | `nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04` | 535.104.05 | stable |
+| `cuda12.3-tf2.16-ubuntu22.04-260627` | 12.3 | 2.16.1 | `nvidia/cuda:12.3.2-devel-ubuntu22.04` + `tensorflow[and-cuda]` | 545.23.08 | stable |
 | `cuda12.5-tf2.20-ubuntu22.04-260627` | 12.5 | 2.20.0 | `nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04` | 555.42.06 | stable |
 | `cuda12.8-tf2.20-ubuntu22.04-260627` | 12.8 | 2.20.0 | `nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04` | 570.124.06 | experimental |
 
@@ -18,9 +19,10 @@ Alias tags:
 | `latest`, `stable`, `cuda12.5-tf2.20` | CUDA 12.5 / TensorFlow 2.20 |
 | `legacy`, `cuda11.8-tf2.13` | CUDA 11.8 / TensorFlow 2.13 |
 | `cuda12.2-tf2.15` | CUDA 12.2 / TensorFlow 2.15 |
+| `cuda12.3-tf2.16` | CUDA 12.3 / TensorFlow 2.16 |
 | `cuda12.8-tf2.20`, `h200-experimental` | CUDA 12.8 / TensorFlow 2.20 |
 
-TensorFlow 공식 빌드 구성 기준으로 TensorFlow 2.20.0은 CUDA 12.5/cuDNN 9.3 조합이다. CUDA 12.8 이미지는 H200/LAB10 검증 전까지 experimental로 둔다.
+TensorFlow 공식 빌드 구성 기준으로 TensorFlow 2.16.1은 CUDA 12.3/cuDNN 8.9 조합이고, TensorFlow 2.20.0은 CUDA 12.5/cuDNN 9.3 조합이다. CUDA 12.8 이미지는 H200/LAB10 검증 전까지 experimental로 둔다.
 
 ## Included Runtime
 
