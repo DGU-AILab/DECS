@@ -4,7 +4,7 @@
   gather_facts: false
   vars:
     image_repository: dguailab/decs
-    image_tag: cuda12.5-tf2.20-ubuntu22.04-260515
+    image_tag: cuda12.5-tf2.20-ubuntu22.04-260627
     test_container_name: "decs-smoke-{{ image_tag | regex_replace('[^A-Za-z0-9_.-]', '-') }}"
     test_home_root: /tmp/decs-smoke-home
     test_username: decstest
@@ -18,13 +18,29 @@
   tasks:
     - name: Run smoke lifecycle
       block:
-        - name: Prepare smoke home mount
-          ansible.builtin.shell: "mkdir -p {{ test_home_root | quote }}"
-
         - name: Ensure image exists locally or can be pulled
           ansible.builtin.shell: >
             docker image inspect {{ image_repository }}:{{ image_tag }} >/dev/null 2>&1
             || docker pull {{ image_repository }}:{{ image_tag }}
+
+        - name: Prepare smoke home mount
+          ansible.builtin.shell: |
+            set -euo pipefail
+            mkdir -p {{ test_home_root | quote }}
+            docker run --rm \
+              --entrypoint bash \
+              --mount type=bind,source={{ test_home_root | quote }},target=/smoke-home \
+              -e TEST_USERNAME={{ test_username | quote }} \
+              -e TEST_UID={{ test_uid | quote }} \
+              -e TEST_GID={{ test_gid | quote }} \
+              {{ image_repository }}:{{ image_tag }} \
+              -lc 'set -euo pipefail
+                rm -rf "/smoke-home/${TEST_USERNAME}"
+                mkdir -p "/smoke-home/${TEST_USERNAME}"
+                chown "${TEST_UID}:${TEST_GID}" "/smoke-home/${TEST_USERNAME}"
+                chmod 750 "/smoke-home/${TEST_USERNAME}"'
+          args:
+            executable: /bin/bash
 
         - name: Remove old smoke container
           ansible.builtin.shell: "docker rm -f {{ test_container_name | quote }} >/dev/null 2>&1 || true"
@@ -42,6 +58,7 @@
             --name {{ test_container_name | quote }}
             -e USER_ID={{ test_username | quote }}
             -e GID={{ test_gid | quote }}
+            -e USER_PW='DecsTest1234'
             -e USER_GROUP={{ test_group | quote }}
             -e UID={{ test_uid | quote }}
             -e ENABLE_VNC={{ (enable_vnc | bool) | ternary('true', 'false') | quote }}

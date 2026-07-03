@@ -28,9 +28,21 @@ def random_password(length):
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
+def resolve_uid_script(uid_root):
+    candidates = [
+        uid_root / "legacy" / "script_test" / "create_container.sh",
+        uid_root / "script_test" / "create_container.sh",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    tried = "\n".join(f"  - {candidate}" for candidate in candidates)
+    raise SystemExit(f"uid dry-run wrapper not found. Tried:\n{tried}")
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Exercise ~/uid/script_test/create_container.sh with DECS image tags."
+        description="Exercise the UID dry-run create-container wrapper with DECS image tags."
     )
     parser.add_argument("--manifest", default="image-variants.json")
     parser.add_argument("--repository", default="dguailab/decs")
@@ -49,9 +61,7 @@ def main():
     repo_root = Path(__file__).resolve().parents[1]
     manifest = load_manifest(repo_root / args.manifest)
     date_tag = args.date_tag or manifest["default_date_tag"]
-    uid_script = Path(args.uid_root) / "script_test" / "create_container.sh"
-    if not uid_script.exists():
-        raise SystemExit(f"uid dry-run wrapper not found: {uid_script}")
+    uid_script = resolve_uid_script(Path(args.uid_root))
 
     repository_name = args.repository.rsplit("/", 1)[-1]
     expiration = (date.today() + timedelta(days=7)).isoformat()
