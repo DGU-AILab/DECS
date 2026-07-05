@@ -107,9 +107,10 @@ RUN mkdir -p /jupyter_config \
     && touch /jupyter_config/jupyter_notebook_config.py
 
 COPY entrypoint.sh /
+COPY decs-chrome /usr/local/bin/decs-chrome
 
 # noVNC listens on 6080. The TigerVNC server binds to localhost only.
 EXPOSE 6080
 
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh /usr/local/bin/decs-chrome
 ENTRYPOINT ["bash", "/entrypoint.sh"]

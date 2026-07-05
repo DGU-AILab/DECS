@@ -6,11 +6,11 @@ DECS 이미지는 GPU/driver 호환성을 관리하기 위해 CUDA variant별로
 
 | Variant tag | CUDA | TensorFlow | Base image | 최소 NVIDIA driver | 상태 |
 | --- | --- | --- | --- | --- | --- |
-| `cuda11.8-tf2.13-ubuntu22.04-260627` | 11.8 | 2.13.0 | `nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04` | 520.61.05 | stable |
-| `cuda12.2-tf2.15-ubuntu22.04-260627` | 12.2 | 2.15.0 | `nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04` | 535.104.05 | stable |
-| `cuda12.3-tf2.16-ubuntu22.04-260627` | 12.3 | 2.16.1 | `nvidia/cuda:12.3.2-devel-ubuntu22.04` + `tensorflow[and-cuda]` | 545.23.08 | stable |
-| `cuda12.5-tf2.20-ubuntu22.04-260627` | 12.5 | 2.20.0 | `nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04` | 555.42.06 | stable |
-| `cuda12.8-tf2.20-ubuntu22.04-260627` | 12.8 | 2.20.0 | `nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04` | 570.124.06 | experimental |
+| `cuda11.8-tf2.13-ubuntu22.04-260705` | 11.8 | 2.13.0 | `nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04` | 520.61.05 | stable |
+| `cuda12.2-tf2.15-ubuntu22.04-260705` | 12.2 | 2.15.0 | `nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04` | 535.104.05 | stable |
+| `cuda12.3-tf2.16-ubuntu22.04-260705` | 12.3 | 2.16.1 | `nvidia/cuda:12.3.2-devel-ubuntu22.04` + `tensorflow[and-cuda]` | 545.23.08 | stable |
+| `cuda12.5-tf2.20-ubuntu22.04-260705` | 12.5 | 2.20.0 | `nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04` | 555.42.06 | stable |
+| `cuda12.8-tf2.20-ubuntu22.04-260705` | 12.8 | 2.20.0 | `nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04` | 570.124.06 | experimental |
 
 Alias tags:
 
@@ -34,6 +34,7 @@ TensorFlow 공식 빌드 구성 기준으로 TensorFlow 2.16.1은 CUDA 12.3/cuDN
 - Miniforge under `/opt/conda`
 - micromamba
 - JupyterLab / Notebook / ipywidgets
+- `decs-chrome` wrapper for GUI Chrome sessions with profile/cache under `/var/tmp/decs-chrome-*`
 
 `entrypoint.sh`는 시작 시 이미지 variant, CUDA/TensorFlow 버전, 요구 driver 버전, 실제 `nvidia-smi` 정보를 출력한다. `STRICT_CUDA_COMPAT=true`를 주면 host driver가 variant의 최소 driver보다 낮을 때 시작을 실패시킨다.
 
@@ -67,7 +68,7 @@ UID Python CLI에서는 이미지 이름과 버전을 분리해서 전달한다.
 cd ~/uid/script
 uidctl create-container \
   --image decs \
-  --version cuda12.5-tf2.20-ubuntu22.04-260627
+  --version cuda12.5-tf2.20-ubuntu22.04-260705
 ```
 
 noVNC는 기존처럼 opt-in이다.
@@ -110,6 +111,14 @@ group-dir-share ~/sharing_dir groupA
 
 이 helper는 사용자 권한으로만 `mkdir`, `chgrp`, `chmod 2770`을 수행하고, `setfacl`이 있으면 shared group에 parent traverse ACL과 share/default ACL을 부여한다. `sudo chgrp/chmod/chown`은 restricted sudo에서 차단되지만, 일반 사용자 권한의 `chgrp/chmod`는 self-service 공유를 위해 허용된다.
 
+GUI Chrome은 Kerberos NFS 홈 아래에 profile DB/cache를 만들지 않도록 래퍼로 실행한다.
+
+```bash
+decs-chrome
+```
+
+noVNC 바탕화면에는 `Chrome.desktop` 바로가기가 생성된다. Chrome profile/cache/runtime은 컨테이너 로컬 `/var/tmp/decs-chrome-*` 아래에 저장되므로, 컨테이너를 새로 만들면 브라우저 설정과 프로필은 초기화될 수 있다.
+
 ## Tests
 
 이 저장소 내부의 테스트 파일만 사용한다. 외부 `~/uid`와 ansible inventory는 호출 대상이다.
@@ -130,13 +139,13 @@ python3 scripts/test_uid_create_container.py --variant cuda12.5-tf2.20-ubuntu22.
 LAB10 같은 실제 GPU host에서 ansible smoke test:
 
 ```bash
-tar -czf /tmp/decs-build-context-260627.tgz Dockerfile entrypoint.sh .dockerignore
+tar -czf /tmp/decs-build-context-260705.tgz Dockerfile entrypoint.sh decs-chrome .dockerignore
 
 ansible-playbook \
   -i /home/jy/ansible/inventory.ini \
   tests/ansible/decs_image_build.yml \
   -e target_hosts=lab10 \
-  -e image_tag=cuda12.8-tf2.20-ubuntu22.04-260627 \
+  -e image_tag=cuda12.8-tf2.20-ubuntu22.04-260705 \
   -e base_image=nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04 \
   -e decs_image_variant=cuda12.8-tf2.20-ubuntu22.04 \
   -e cuda_version=12.8 \
@@ -148,7 +157,7 @@ ansible-playbook \
   -i /home/jy/ansible/inventory.ini \
   tests/ansible/decs_image_smoke.yml \
   -e target_hosts=lab10 \
-  -e image_tag=cuda12.8-tf2.20-ubuntu22.04-260627
+  -e image_tag=cuda12.8-tf2.20-ubuntu22.04-260705
 ```
 
 VNC까지 확인:
@@ -158,7 +167,7 @@ ansible-playbook \
   -i /home/jy/ansible/inventory.ini \
   tests/ansible/decs_image_smoke.yml \
   -e target_hosts=lab10 \
-  -e image_tag=cuda12.5-tf2.20-ubuntu22.04-260627 \
+  -e image_tag=cuda12.5-tf2.20-ubuntu22.04-260705 \
   -e enable_vnc=true
 ```
 

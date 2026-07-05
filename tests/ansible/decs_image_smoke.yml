@@ -4,7 +4,7 @@
   gather_facts: false
   vars:
     image_repository: dguailab/decs
-    image_tag: cuda12.5-tf2.20-ubuntu22.04-260627
+    image_tag: cuda12.5-tf2.20-ubuntu22.04-260705
     test_container_name: "decs-smoke-{{ image_tag | regex_replace('[^A-Za-z0-9_.-]', '-') }}"
     test_home_root: /tmp/decs-smoke-home
     test_username: decstest

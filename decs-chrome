@@ -1,0 +1,56 @@
+#!/bin/bash
+set -euo pipefail
+
+chrome_bin="${DECS_CHROME_BIN:-}"
+if [[ -z "$chrome_bin" ]]; then
+    for candidate in google-chrome google-chrome-stable chromium chromium-browser; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            chrome_bin="$(command -v "$candidate")"
+            break
+        fi
+    done
+fi
+
+if [[ -z "$chrome_bin" ]]; then
+    echo "Chrome executable not found." >&2
+    exit 1
+fi
+
+uid="$(id -u)"
+user_name="$(id -un 2>/dev/null || printf 'user')"
+safe_user="$(printf '%s' "$user_name" | tr -c 'A-Za-z0-9_.-' '_')"
+base_dir="${DECS_CHROME_BASE_DIR:-/var/tmp/decs-chrome-${safe_user}-${uid}}"
+profile_dir="${DECS_CHROME_PROFILE_DIR:-$base_dir/profile}"
+cache_dir="${DECS_CHROME_CACHE_DIR:-$base_dir/cache}"
+runtime_dir="${XDG_RUNTIME_DIR:-$base_dir/runtime}"
+
+mkdir -p "$profile_dir" "$cache_dir/disk" "$cache_dir/xdg" "$profile_dir/xdg" "$runtime_dir"
+chmod 700 "$base_dir" "$profile_dir" "$cache_dir" "$cache_dir/disk" "$cache_dir/xdg" "$profile_dir/xdg" "$runtime_dir" 2>/dev/null || true
+
+export XDG_RUNTIME_DIR="$runtime_dir"
+export XDG_CACHE_HOME="${DECS_CHROME_XDG_CACHE_HOME:-$cache_dir/xdg}"
+export XDG_CONFIG_HOME="${DECS_CHROME_XDG_CONFIG_HOME:-$profile_dir/xdg}"
+export XDG_DATA_HOME="${DECS_CHROME_XDG_DATA_HOME:-$profile_dir/xdg-data}"
+mkdir -p "$XDG_DATA_HOME"
+chmod 700 "$XDG_DATA_HOME" 2>/dev/null || true
+
+chrome_args=(
+    "$chrome_bin"
+    "--user-data-dir=$profile_dir"
+    "--disk-cache-dir=$cache_dir/disk"
+    "--password-store=basic"
+    "--no-first-run"
+    "--no-default-browser-check"
+    "--disable-background-networking"
+    "--disable-component-update"
+    "--disable-dev-shm-usage"
+    "--disable-sync"
+    "--log-level=3"
+    "$@"
+)
+
+if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]] && command -v dbus-run-session >/dev/null 2>&1; then
+    exec dbus-run-session -- "${chrome_args[@]}"
+fi
+
+exec "${chrome_args[@]}"

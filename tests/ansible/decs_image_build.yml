@@ -3,10 +3,10 @@
   hosts: "{{ target_hosts }}"
   gather_facts: false
   vars:
-    build_context_archive: /tmp/decs-build-context-260627.tgz
-    remote_build_dir: /tmp/decs-build-context-260627
+    build_context_archive: /tmp/decs-build-context-260705.tgz
+    remote_build_dir: /tmp/decs-build-context-260705
     image_repository: dguailab/decs
-    image_tag: cuda12.5-tf2.20-ubuntu22.04-260627
+    image_tag: cuda12.5-tf2.20-ubuntu22.04-260705
     base_image: nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04
     decs_image_variant: cuda12.5-tf2.20-ubuntu22.04
     cuda_version: "12.5"

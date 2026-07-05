@@ -192,6 +192,31 @@ run_as_user() {
     sudo -H -u "$USER_ID" env "${user_env[@]}" "$@"
 }
 
+home_path_test() {
+    local test_flag="$1"
+    local path="$2"
+
+    case "$test_flag" in
+        -d) [[ -d "$path" ]] && return 0 ;;
+        -f) [[ -f "$path" ]] && return 0 ;;
+        -e) [[ -e "$path" ]] && return 0 ;;
+        -s) [[ -s "$path" ]] && return 0 ;;
+        *)
+            echo "[ERROR] Unsupported home path test flag: $test_flag" >&2
+            return 2
+            ;;
+    esac
+
+    # Kerberos NFS can deny metadata access to container root while the user
+    # ccache can still see the prepared home.
+    if [[ -n "$KRB5CCNAME" ]]; then
+        run_as_user test "$test_flag" "$path"
+        return $?
+    fi
+
+    return 1
+}
+
 print_image_runtime_info() {
     echo "DECS image variant: ${DECS_IMAGE_VARIANT:-unknown}"
     echo "DECS CUDA version: ${DECS_CUDA_VERSION:-unknown}"
@@ -276,7 +301,7 @@ ensure_group_and_user() {
 }
 
 ensure_user_home() {
-    if [[ ! -d "$USER_HOME" ]]; then
+    if ! home_path_test -d "$USER_HOME"; then
         mkdir -p "$USER_HOME" || {
             echo "[ERROR] Could not create $USER_HOME. If /home is an NFS mount with root_squash, pre-create this directory on the NAS as ${UID}:${GID}." >&2
             exit 1
@@ -360,7 +385,7 @@ EOF
 }
 
 refresh_user_bashrc() {
-    [[ -f "$USER_HOME/.bashrc" ]] || return 0
+    home_path_test -f "$USER_HOME/.bashrc" || return 0
 
     local conda_block_file
     conda_block_file="$(mktemp)"
@@ -435,13 +460,14 @@ EOF
     sed -i '/ldconfig/d' /etc/bash.bashrc || true
 
     [[ ! -f /etc/legal ]] || rm /etc/legal
+    service dbus start || true
     service ssh restart
 }
 
 ensure_jupyter_config() {
     run_as_user mkdir -p "$JUPYTER_DIR" "$JUPYTER_CONFIG_DIR"
 
-    if [[ ! -f "$JUPYTER_CONFIG_FILE" ]]; then
+    if ! home_path_test -f "$JUPYTER_CONFIG_FILE"; then
         echo "jupyter_notebook_config.py not found, generating..."
         if [[ -s /jupyter_config/jupyter_notebook_config.py ]]; then
             run_as_user cp /jupyter_config/jupyter_notebook_config.py "$JUPYTER_CONFIG_FILE"
@@ -541,7 +567,7 @@ start_novnc() {
 
     if [[ -n "${VNC_PASSWORD:-}" ]]; then
         vnc_password="$VNC_PASSWORD"
-    elif [[ -s "$vnc_password_file" ]]; then
+    elif home_path_test -s "$vnc_password_file"; then
         vnc_password="$(run_as_user head -c 8 "$vnc_password_file" | tr -d '\r\n')"
     else
         vnc_password="$(generate_token | head -c 8)"
@@ -593,9 +619,41 @@ chmod +x "$3/xstartup"
     echo "noVNC listening on port $novnc_port. VNC password saved to $vnc_password_file"
 }
 
+install_chrome_shortcut() {
+    if ! command -v decs-chrome >/dev/null 2>&1; then
+        return 0
+    fi
+
+    run_as_user bash -c '
+set -euo pipefail
+desktop_dir="$HOME/Desktop"
+applications_dir="$HOME/.local/share/applications"
+mkdir -p "$desktop_dir" "$applications_dir"
+for desktop_file in "$applications_dir/Chrome.desktop" "$desktop_dir/Chrome.desktop"; do
+  cat > "$desktop_file" <<'"'"'EOF'"'"'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Chrome
+Comment=Run Chrome with a container-local profile
+Exec=decs-chrome
+Icon=google-chrome
+Terminal=false
+Categories=Network;WebBrowser;
+StartupNotify=true
+EOF
+  chmod 755 "$desktop_file"
+  if command -v gio >/dev/null 2>&1; then
+    gio set "$desktop_file" metadata::trusted true >/dev/null 2>&1 || true
+  fi
+done
+'
+}
+
 start_user_apps() {
     refresh_user_bashrc
     ensure_jupyter_config
+    install_chrome_shortcut
     start_jupyter
     start_novnc || echo "VNC/noVNC startup failed."
 }

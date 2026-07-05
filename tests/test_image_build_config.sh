@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOCKERFILE="$ROOT_DIR/Dockerfile"
+CHROME_WRAPPER="$ROOT_DIR/decs-chrome"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -30,6 +31,19 @@ assert_contains "$DOCKERFILE" 'ARG CONDA_PACKAGES=' "conda package list override
 assert_contains "$DOCKERFILE" 'jupyter_client<8.9' "jupyter client compatible with TensorFlow 2.13 typing_extensions"
 assert_contains "$DOCKERFILE" 'krb5-user' "Kerberos client package"
 assert_contains "$DOCKERFILE" 'acl' "POSIX ACL tools for Kerberos group sharing"
+assert_contains "$DOCKERFILE" 'COPY decs-chrome /usr/local/bin/decs-chrome' "Chrome wrapper installed"
+assert_contains "$DOCKERFILE" 'chmod +x /entrypoint.sh /usr/local/bin/decs-chrome' "Chrome wrapper executable"
+
+bash -n "$CHROME_WRAPPER"
+assert_contains "$CHROME_WRAPPER" '/var/tmp/decs-chrome-${safe_user}-${uid}' "Chrome profile lives under var tmp"
+assert_contains "$CHROME_WRAPPER" '--user-data-dir=$profile_dir' "Chrome wrapper sets profile dir"
+assert_contains "$CHROME_WRAPPER" '--disk-cache-dir=$cache_dir/disk' "Chrome wrapper sets disk cache dir"
+assert_contains "$CHROME_WRAPPER" '--password-store=basic' "Chrome wrapper avoids keyring writes"
+assert_contains "$CHROME_WRAPPER" 'XDG_DATA_HOME="${DECS_CHROME_XDG_DATA_HOME:-$profile_dir/xdg-data}"' "Chrome wrapper keeps NSS data off NFS home"
+assert_contains "$CHROME_WRAPPER" 'dbus-run-session -- "${chrome_args[@]}"' "Chrome wrapper supplies DBus session when needed"
+assert_contains "$CHROME_WRAPPER" '--disable-component-update' "Chrome wrapper reduces background updater noise"
+assert_contains "$CHROME_WRAPPER" '--disable-sync' "Chrome wrapper avoids account sync background writes"
+assert_contains "$CHROME_WRAPPER" '--log-level=3' "Chrome wrapper keeps GUI logs quiet"
 
 conda_clean_line="$(line_number "&& conda clean -afy")"
 conda_init_line="$(line_number "&& conda init bash")"
